@@ -23,12 +23,14 @@ class TestRouter(unittest.TestCase):
     def tearDownClass(cls) -> None:
         rclpy.shutdown()
 
-    def test_route(self):
+    @patch("composer.router.Pipeline.execute_pipeline")
+    def test_route(self, mock_pipeline):
         main_route = Router(self.pipelines)
         main_route.route(self.payload.get('action', ''))
         self.pipeline.execute_pipeline.assert_called_once()
         
-    def test_route_no_pipeline_found(self):
+    @patch("composer.router.Pipeline.execute_pipeline")
+    def test_route_no_pipeline_found(self, mock_pipeline):
         main_route = Router(self.pipelines)
         with patch('builtins.print') as mock_print:
             main_route.route('no_action')
