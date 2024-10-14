@@ -58,3 +58,29 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 ### Launch
 
 You could refer to the [launch](docs/launch.md) documentation for this
+
+## Run Tests
+To run all tests in the test directory with unittest:
+```bash
+    python3 -m unittest
+```
+To run a spesific test file:
+```bash
+    python3 -m unittest test_file.py
+```
+To measure coverage, firstly install coverage package:
+```bash
+    pip install coverage
+```
+After installing the package you can use these commands for mesure coverage over the tests:
+```bash
+    python3 -m coverage run --source=src/composer -m unittest discover -s src/composer/test
+```
+To generate HTML report of the coverage
+```bash
+    python3 -m coverage html --directory=test_coverages/composer_coverage
+```
+You can use '--omit' to discard a file from the coverage report
+```bash
+    python3 -m coverage run --source=src/composer --omit=src/composer/test/* -m unittest discover -s src/composer/test
+```
