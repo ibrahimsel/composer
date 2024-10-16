@@ -33,9 +33,6 @@ class TestLaunchPlugin(unittest.TestCase):
         self.node.async_loop.run_forever.assert_called_once()
     
     
-    
-    
-    
     @patch("composer.launch_plugin.StackManifest")    
     def test_handle_composed_stack(self, mock_stack_manifest):
         mock_stack_manifest.args = '{"test":"mock"}'
@@ -64,6 +61,7 @@ class TestLaunchPlugin(unittest.TestCase):
         self.node.handle_local_launch(mock_local_mode)
         self.assertEqual(self.node.ws_full_path, mock_local_mode.ws_full_path)    
         self.assertEqual(self.node.launcher_path, mock_local_mode.launcher_path_relative_to_ws)    
+    
         
     def test_handle_local_launch_exception(self):
         local_msg = MagicMock()
@@ -89,6 +87,7 @@ class TestLaunchPlugin(unittest.TestCase):
         self.node.launcher_path = None
         self.node.handle_repo_launch(mock_repo_mode)
         self.assertEqual(self.node.launcher_path, first_value)
+    
         
     @patch("composer.launch_plugin.MutoDefaultLaunchPlugin.source_workspaces")    
     @patch("os.chdir")
@@ -124,9 +123,6 @@ class TestLaunchPlugin(unittest.TestCase):
         self.node.get_logger().info.assert_called_with("launcher path: None")
         
     
-    
-    
-    
     def test_on_launch_done(self):
         self.node.launch_description = MagicMock()
         self.node.launch_service = MagicMock()
@@ -146,15 +142,10 @@ class TestLaunchPlugin(unittest.TestCase):
         self.node.get_logger().warn.assert_called_once_with("Launch failed: not enough values to unpack (expected 2, got 0)")
         
                 
-    
     @patch("composer.launch_plugin.subprocess")
     def test_build_workspace(self, mock_subprocess):
         self.node.build_workspace()
         mock_subprocess.run.assert_called_once_with(['colcon', 'build', '--symlink-install', '--cmake-args', '-DCMAKE_BUILD_TYPE=Release'], check=True)
-    
-    
-    
-    
     
     
     @patch("composer.launch_plugin.CoreTwin")
@@ -171,10 +162,6 @@ class TestLaunchPlugin(unittest.TestCase):
         self.node.set_stack_cli.call_async.assert_called_once_with(mock_core_twin.Request())
         self.node.launcher.kill.assert_called_once()
         self.assertEqual(returned_value, mock_launch_plugin.response)
-    
-    
-    
-    
     
     
     def test_handle_apply(self):
@@ -194,6 +181,7 @@ class TestLaunchPlugin(unittest.TestCase):
         future.result.return_value = True
         self.node.set_stack_done_callback(future)
         self.node.get_logger().info.assert_called_once_with("Edge device stack setting is done successfully")
+    
     
     def test_set_stack_done_callback_false(self):
         future = MagicMock()
