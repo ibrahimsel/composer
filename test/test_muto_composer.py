@@ -9,7 +9,8 @@ from rclpy.node import Node
 
 class TestMutoComposer(unittest.TestCase):
     
-    def setUp(self) -> None:
+    @patch("composer.muto_composer.Pipeline")
+    def setUp(self, mock_pipeline) -> None:
         self.node = MutoComposer()
         self.incoming_stack_topic = MagicMock()
         self.get_stack_cli = MagicMock()
