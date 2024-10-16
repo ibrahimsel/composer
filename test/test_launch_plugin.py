@@ -163,9 +163,14 @@ class TestLaunchPlugin(unittest.TestCase):
         mock_launch_plugin.request(start=True)
         mock_launch_plugin.response(success=False, err_msg='')
         self.node.current_stack = MagicMock()
-        self.node.handle_kill(mock_launch_plugin.request, mock_launch_plugin.response)
-    
-    
+        self.node.set_stack_cli = MagicMock()
+        self.node.launcher = MagicMock()
+        mock_core_twin.Request = MagicMock()
+        returned_value = self.node.handle_kill(mock_launch_plugin.request, mock_launch_plugin.response)
+        mock_core_twin.Request.assert_called_once()
+        self.node.set_stack_cli.call_async.assert_called_once_with(mock_core_twin.Request())
+        self.node.launcher.kill.assert_called_once()
+        self.assertEqual(returned_value, mock_launch_plugin.response)
     
     
     
