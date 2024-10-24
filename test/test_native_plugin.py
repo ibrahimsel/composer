@@ -66,27 +66,24 @@ class TestNativePlugin(unittest.TestCase):
         self.assertTrue(mock_native_plugin.response.success)
 
 
-    # @patch.object(MutoDefaultNativePlugin, "get_logger")
-    # @patch("composer.native_plugin.MutoDefaultNativePlugin.prep_native")
-    # @patch("composer.native_plugin.NativePlugin")
-    # def test_handle_native_request_false(self, mock_native_plugin, mock_prep_native, mock_get_logger):
-    #     mock_native_plugin.request = None
-    #     mock_native_plugin.response(success=None, err_msg='')
-    #     mock_logger = MagicMock()
-    #     mock_get_logger.return_value = mock_logger
+    @patch.object(MutoDefaultNativePlugin, "get_logger")
+    @patch("composer.native_plugin.MutoDefaultNativePlugin.prep_native")
+    @patch("composer.native_plugin.NativePlugin")
+    def test_handle_native_request_false(self, mock_native_plugin, mock_prep_native, mock_get_logger):
+        mock_native_plugin.request = None
+        mock_native_plugin.response(success=None, err_msg='')
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
         
-    #     self.node.current_stack = MagicMock()
-    #     self.node.current_stack.mode = "other_mode"
+        self.node.current_stack = MagicMock()
+        self.node.current_stack.mode = "other_mode"
         
-        
-    #     with self.assertRaises(Exception):
-    #         self.node.handle_native(mock_native_plugin.request, mock_native_plugin.response)
+        self.node.handle_native(mock_native_plugin.request, mock_native_plugin.response)    
             
-        
-    #     mock_prep_native.assert_not_called()
-    #     mock_logger.warn.assert_called_once_with("No mode provided. Skipping")
-    #     self.assertTrue(mock_native_plugin.response.success)
-
+        mock_prep_native.assert_not_called()
+        mock_logger.warn.assert_called_once_with("Exception: 'NoneType' object has no attribute 'start'")
+        self.assertFalse(mock_native_plugin.response.success)
+        self.assertEqual(mock_native_plugin.response.err_msg, "'NoneType' object has no attribute 'start'")
 
     @patch("composer.native_plugin.MutoDefaultNativePlugin.handle_local_native")
     @patch("composer.native_plugin.MutoDefaultNativePlugin.handle_repo_native")

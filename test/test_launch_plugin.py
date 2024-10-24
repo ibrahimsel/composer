@@ -123,6 +123,23 @@ class TestLaunchPlugin(unittest.TestCase):
         self.node.get_logger().info.assert_called_with("launcher path: None")
         
     
+    
+    @patch("composer.launch_plugin.MutoDefaultLaunchPlugin.source_workspaces")    
+    @patch("os.chdir")
+    @patch("composer.launch_plugin.LaunchPlugin")
+    def test_handle_start_exception(self, mock_launch_plugin, mock_os, mock_ws):
+        mock_launch_plugin.request = None
+        mock_launch_plugin.response(success=None, err_msg='')
+        self.node.current_stack.native.native_mode = "local"
+        self.node.launch_arguments = ['test:=mock']
+        self.node.ws_full_path = MagicMock()
+        self.node.launcher_full_path = MagicMock()
+        self.node.handle_start(mock_launch_plugin.request, mock_launch_plugin.response)
+        mock_os.assert_not_called()
+        mock_ws.assert_not_called()
+        self.assertFalse(mock_launch_plugin.response.success)
+        self.assertEqual(mock_launch_plugin.response.err_msg,"'NoneType' object has no attribute 'start'")
+    
     def test_on_launch_done(self):
         self.node.launch_description = MagicMock()
         self.node.launch_service = MagicMock()
@@ -162,6 +179,27 @@ class TestLaunchPlugin(unittest.TestCase):
         self.node.set_stack_cli.call_async.assert_called_once_with(mock_core_twin.Request())
         self.node.launcher.kill.assert_called_once()
         self.assertEqual(returned_value, mock_launch_plugin.response)
+    
+    
+    @patch("composer.launch_plugin.CoreTwin")
+    @patch("composer.launch_plugin.LaunchPlugin")    
+    def test_handle_kill_exception(self, mock_launch_plugin, mock_core_twin):
+        mock_launch_plugin.request = None
+        mock_launch_plugin.response(success=None, err_msg='')
+        self.node.current_stack = MagicMock()
+        self.node.set_stack_cli = MagicMock()
+        self.node.launcher = MagicMock()
+        mock_core_twin.Request = MagicMock()
+        returned_value = self.node.handle_kill(mock_launch_plugin.request, mock_launch_plugin.response)
+        
+        mock_core_twin.Request.assert_not_called()
+        self.node.set_stack_cli.call_async.assert_not_called()
+        self.node.launcher.kill.assert_not_called()
+        self.assertEqual(returned_value, None)
+        self.assertFalse(mock_launch_plugin.response.success)
+        self.assertEqual(mock_launch_plugin.response.err_msg,"'NoneType' object has no attribute 'start'")
+
+    
     
     
     def test_handle_apply(self):
