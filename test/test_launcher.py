@@ -47,9 +47,6 @@ class TestLauncher(unittest.TestCase):
         self.assertIn(('launch_sensor', 'true'), returned_value)
         self.assertNotIn(('la0unch_sensor', 'false'), returned_value)
         
-    def test_launch_a_launch_file(self):
-        pass
-    
     def test_shutdown_is_alive_true(self):
         Ros2LaunchParent.shutdown(self)
         self._stop_event.set.assert_called_once()
@@ -155,5 +152,6 @@ class TestLauncher(unittest.TestCase):
         Ros2LaunchParent._event_handler(MagicMock(), 'exit', mock_action_exit, node_list, self._lock)
         self.assertNotIn({"test_node": 24}, node_list)
 
-if __name__ == "__main__":
+if __name__ == "__main__":    
+
     unittest.main()

@@ -65,7 +65,6 @@ class TestNativePlugin(unittest.TestCase):
         mock_logger.warn.assert_called_once_with("No mode provided. Skipping")
         self.assertTrue(mock_native_plugin.response.success)
 
-
     @patch.object(MutoDefaultNativePlugin, "get_logger")
     @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.prep_native")
     @patch("composer.plugins.native_plugin.NativePlugin")
@@ -106,7 +105,6 @@ class TestNativePlugin(unittest.TestCase):
         mock_local_native.assert_not_called()
         mock_repo_native.assert_not_called()
 
-
     @patch("os.path.join")
     @patch("os.path.expanduser")
     @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.find_launcher")
@@ -122,7 +120,6 @@ class TestNativePlugin(unittest.TestCase):
         self.node.archive.decompress_into_local.assert_called_once()
         mock_find_launcher.assert_called_once_with(f"{mock_os_join()}", launch_file_name)
     
-    
     @patch("os.walk")
     @patch("os.path.join")
     def test_find_launcher(self, mock_join, mock_walk):
@@ -134,7 +131,6 @@ class TestNativePlugin(unittest.TestCase):
         mock_join.assert_called_once_with("root_2", "mock_launcher")
         self.assertEqual(returned_value, mock_join())        
  
- 
     @patch("os.walk")
     @patch("os.path.join")
     def test_find_launcher_none(self, mock_join, mock_walk):
@@ -144,7 +140,6 @@ class TestNativePlugin(unittest.TestCase):
         mock_walk.assert_called_once_with("/mock_ws")
         mock_join.assert_not_called()
         self.assertEqual(returned_value, None)  
- 
     
     @patch("os.chdir")
     @patch("composer.plugins.native_plugin.LocalMode")
@@ -156,7 +151,6 @@ class TestNativePlugin(unittest.TestCase):
         
         self.node.current_stack.native.local.launcher_path_relative_to_ws = ws_relative_path
         self.node.current_stack.native.local.ws_full_path = ws_full_path
-        
         
         self.node.handle_local_native()
         mock_chdir.assert_called_once_with(ws_full_path)

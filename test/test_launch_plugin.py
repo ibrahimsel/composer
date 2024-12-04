@@ -6,8 +6,6 @@ import asyncio
 from muto_msgs.srv import LaunchPlugin
 import json
 
-
-
 class TestLaunchPlugin(unittest.TestCase):
     
     def setUp(self) -> None:
@@ -32,62 +30,12 @@ class TestLaunchPlugin(unittest.TestCase):
         self.node.async_loop.stop.assert_called_once()
         self.node.async_loop.run_forever.assert_called_once()
     
-    
-    # @patch("composer.plugins.launch_plugin.StackManifest")    
-    # def test_handle_composed_stack(self, mock_stack_manifest):
-    #     mock_stack_manifest.args = '{"test":"mock"}'
-    #     self.node.handle_composed_stack(mock_stack_manifest)
-    #     self.assertEqual(self.node.current_stack, mock_stack_manifest)
-    #     self.assertEqual(self.node.launch_arguments, ['test:=mock'])
-    
-    
-    # @patch("composer.plugins.launch_plugin.StackManifest")   
-    # def test_handle_composed_stack_exception(self, mock_stack_manifest):
-    #     mock_stack_manifest.args = '{"test"}'    
-    #     self.node.handle_composed_stack(mock_stack_manifest)
-    #     self.node.get_logger().info.assert_called_once()
-
-    
-    # @patch("ros2launch.api.is_launch_file")
-    # @patch("composer.plugins.launch_plugin.LocalMode")
-    # def test_handle_local_launch(self, mock_local_mode, mock_api):
-    #     mock_api.return_value = True
-    #     self.node.ws_full_path = None
-    #     self.node.launcher_path = None
-    #     self.node.launcher_full_path = None
-    #     mock_local_mode.ws_full_path = "/src/dummy_ws/mock_path"
-    #     mock_local_mode.launcher_path_relative_to_ws = "/mock_path"
-        
-    #     self.node.handle_local_launch(mock_local_mode)
-    #     self.assertEqual(self.node.ws_full_path, mock_local_mode.ws_full_path)    
-    #     self.assertEqual(self.node.launcher_path, mock_local_mode.launcher_path_relative_to_ws)    
-    
-        
-    # def test_handle_local_launch_exception(self):
-    #     local_msg = MagicMock()
-    #     local_msg.ws_full_path = "/invalid/workspace/path"
-    #     local_msg.launcher_path_relative_to_ws = "invalid_launch_file.launch"
-    #     with patch("ros2launch.api.is_launch_file", return_value=False):
-    #         self.node.handle_local_launch(local_msg)
-    #     self.node.get_logger().info.assert_called_with("Error during local launch: Provided file is not a launch file")
-
-
     @patch("subprocess.PIPE")
     @patch("subprocess.Popen")
     def test_source_workspace(self, mock_popen, mock_pipe):
         self.node.current_stack.source = '{"test":"mock"}'
         self.node.source_workspaces()    
         mock_popen.assert_called_once_with('bash -c "source mock && env"', stdout=mock_pipe, shell=True, executable='/bin/bash')
-        
-        
-    # @patch("composer.plugins.launch_plugin.RepoMode")
-    # def test_handle_repo_launch(self, mock_repo_mode):
-    #     first_value = "/mock/patch"
-    #     mock_repo_mode.launch_file_name = first_value
-    #     self.node.launcher_path = None
-    #     self.node.handle_repo_launch(mock_repo_mode)
-    #     self.assertEqual(self.node.launcher_path, first_value)
-    
         
     @patch("composer.plugins.launch_plugin.MutoDefaultLaunchPlugin.source_workspaces")    
     @patch("os.chdir")
@@ -104,8 +52,6 @@ class TestLaunchPlugin(unittest.TestCase):
         mock_ws.assert_called_once_with()
         self.node.get_logger().info.assert_called_once_with("Argument: test:=mock")
     
-    
-    # @patch("composer.plugins.launch_plugin.MutoDefaultLaunchPlugin.build_workspace")    
     @patch("composer.plugins.launch_plugin.MutoDefaultLaunchPlugin.source_workspaces")    
     @patch("os.chdir")
     @patch("composer.plugins.launch_plugin.LaunchPlugin")
@@ -122,8 +68,6 @@ class TestLaunchPlugin(unittest.TestCase):
         mock_build_ws.assert_called_once_with()
         self.node.get_logger().info.assert_called_with("launcher path: None")
         
-    
-    
     @patch("composer.plugins.launch_plugin.MutoDefaultLaunchPlugin.source_workspaces")    
     @patch("os.chdir")
     @patch("composer.plugins.launch_plugin.LaunchPlugin")
@@ -140,31 +84,6 @@ class TestLaunchPlugin(unittest.TestCase):
         self.assertFalse(mock_launch_plugin.response.success)
         self.assertEqual(mock_launch_plugin.response.err_msg,"'NoneType' object has no attribute 'start'")
     
-    # def test_on_launch_done(self):
-    #     self.node.launch_description = MagicMock()
-    #     self.node.launch_service = MagicMock()
-    #     future = MagicMock()
-    #     future.result.return_value = [None, None]
-    #     self.node.on_launch_done(future)
-    #     self.assertIsNone(self.node.launch_description)
-    #     self.assertIsNone(self.node.launch_service)
-
-    
-    # def test_on_launch_done_exception(self):
-    #     self.node.launch_description = MagicMock()
-    #     self.node.launch_service = MagicMock()
-    #     future = MagicMock()
-    #     future.result.return_value = []
-    #     self.node.on_launch_done(future)
-    #     self.node.get_logger().warn.assert_called_once_with("Launch failed: not enough values to unpack (expected 2, got 0)")
-        
-                
-    # @patch("composer.plugins.launch_plugin.subprocess")
-    # def test_build_workspace(self, mock_subprocess):
-    #     self.node.build_workspace()
-    #     mock_subprocess.run.assert_called_once_with(['colcon', 'build', '--symlink-install', '--cmake-args', '-DCMAKE_BUILD_TYPE=Release'], check=True)
-    
-    
     @patch("composer.plugins.launch_plugin.CoreTwin")
     @patch("composer.plugins.launch_plugin.LaunchPlugin")    
     def test_handle_kill(self, mock_launch_plugin, mock_core_twin):
@@ -179,7 +98,6 @@ class TestLaunchPlugin(unittest.TestCase):
         self.node.set_stack_cli.call_async.assert_called_once_with(mock_core_twin.Request())
         self.node.launcher.kill.assert_called_once()
         self.assertEqual(returned_value, mock_launch_plugin.response)
-    
     
     @patch("composer.plugins.launch_plugin.CoreTwin")
     @patch("composer.plugins.launch_plugin.LaunchPlugin")    
@@ -199,27 +117,21 @@ class TestLaunchPlugin(unittest.TestCase):
         self.assertFalse(mock_launch_plugin.response.success)
         self.assertEqual(mock_launch_plugin.response.err_msg,"'NoneType' object has no attribute 'start'")
 
-    
-    
-    
     def test_handle_apply(self):
         request = LaunchPlugin.Request()
         request.start = True
         response = LaunchPlugin.Response()
 
         response = self.node.handle_apply(request, response)
-
         self.node.get_logger().info.assert_called_once_with("Handling apply")
         self.assertTrue(response.success)
         self.assertEqual(response.err_msg, "")
-
     
     def test_set_stack_done_callback_true(self):
         future = MagicMock()
         future.result.return_value = True
         self.node.set_stack_done_callback(future)
         self.node.get_logger().info.assert_called_once_with("Edge device stack setting is done successfully")
-    
     
     def test_set_stack_done_callback_false(self):
         future = MagicMock()

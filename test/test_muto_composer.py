@@ -22,14 +22,12 @@ class TestMutoComposer(unittest.TestCase):
         self.logger = MagicMock()
         self.get_logger = MagicMock()
                 
-
     def tearDown(self) -> None:
         self.node.destroy_node()
     
     @classmethod
     def setUpClass(cls) -> None:
         rclpy.init()
-
                 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -45,16 +43,12 @@ class TestMutoComposer(unittest.TestCase):
         stack_msg.method = "start"
         stack_msg.payload = json.dumps({"value": {"stackId": "8"}})
         mock_json.return_value = {"value": {"stackId": "8"}}
-        
         self.node.on_stack_callback(stack_msg)
         self.assertEqual(self.node.method, "start")
-        
         self.node.get_stack_cli.call_async.assert_called_once()
         async_value = self.node.get_stack_cli.call_async.return_value
         async_value.add_done_callback.assert_called_once_with(self.node.get_stack_done_callback)
 
-            
-        
     @patch("composer.muto_composer.MutoComposer.resolve_expression")
     @patch("composer.muto_composer.MutoComposer.publish_raw_stack")
     @patch("composer.muto_composer.Router.route")
@@ -66,7 +60,6 @@ class TestMutoComposer(unittest.TestCase):
         mock_raw_stack.assert_called_once()
         mock_resolve_expression.assert_called_once()
         
-    
     @patch("composer.muto_composer.MutoComposer.resolve_expression")
     @patch("composer.muto_composer.MutoComposer.publish_raw_stack")
     @patch("composer.muto_composer.Router.route")
@@ -78,22 +71,6 @@ class TestMutoComposer(unittest.TestCase):
         mock_raw_stack.assert_called_once()
         mock_resolve_expression.assert_called_once()
         mock_route.assert_called_once()
-
-    # @patch.object(MutoComposer, 'get_logger')    
-    # @patch("composer.muto_composer.MutoComposer.resolve_expression")
-    # @patch("composer.muto_composer.MutoComposer.publish_raw_stack")
-    # @patch("composer.muto_composer.Router.route")
-    # def test_get_stack_done_callback_else(self, mock_route, mock_raw_stack, mock_resolve_expression, mock_get_logger):
-    #     future = MagicMock()
-    #     future.result = MagicMock()
-    #     mock_logger = MagicMock()
-    #     mock_get_logger.return_value = mock_logger
-    #     future.result.return_value = None
-    #     self.node.get_stack_done_callback(future)
-    #     mock_raw_stack.assert_not_called()
-    #     mock_resolve_expression.assert_not_called()
-    #     mock_route.assert_not_called()        
-    #     mock_logger.warn.assert_called_with("Stack getting failed. Try your request again.")
 
     @patch('composer.muto_composer.get_package_share_directory')
     def test_resolve_expression_find(self, mock_get_package):
@@ -122,10 +99,8 @@ class TestMutoComposer(unittest.TestCase):
         mock_logger = MagicMock()
         mock_get_logger.return_value = mock_logger
         input_value = "$(find demo_pkg)"
-
         with patch('composer.muto_composer.get_package_share_directory', side_effect=KeyError):
             result = self.node.resolve_expression(input_value)
-
         mock_logger.warn.assert_called_with("demo_pkg does not exist.")
         self.assertEqual(result, input_value)
         
@@ -146,9 +121,6 @@ class TestMutoComposer(unittest.TestCase):
         expected_value = String(data=stack)
         MutoComposer.publish_raw_stack(self, stack)
         self.raw_stack_publisher.publish.assert_called_once_with(expected_value)
-        # self.node.publish_raw_stack(stack)
-        # self.node.raw_stack_publisher = MagicMock()
-        # self.node.raw_stack_publisher.publish.assert_called_once_with(expected_value)
                         
 if __name__ == "__main__":
     unittest.main()
