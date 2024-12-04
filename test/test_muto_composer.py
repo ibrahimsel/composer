@@ -79,6 +79,7 @@ class TestMutoComposer(unittest.TestCase):
         mock_resolve_expression.assert_called_once()
         mock_route.assert_called_once()
 
+<<<<<<< Updated upstream
     @patch.object(MutoComposer, 'get_logger')    
     @patch("composer.muto_composer.MutoComposer.resolve_expression")
     @patch("composer.muto_composer.MutoComposer.publish_raw_stack")
@@ -94,6 +95,23 @@ class TestMutoComposer(unittest.TestCase):
         mock_resolve_expression.assert_not_called()
         mock_route.assert_not_called()        
         mock_logger.warn.assert_called_with("Stack getting failed. Try your request again.")
+=======
+    # @patch.object(MutoComposer, 'get_logger')    
+    # @patch("composer.muto_composer.MutoComposer.resolve_expression")
+    # @patch("composer.muto_composer.MutoComposer.publish_raw_stack")
+    # @patch("composer.muto_composer.Router.route")
+    # def test_get_stack_done_callback_else(self, mock_route, mock_raw_stack, mock_resolve_expression, mock_get_logger):
+    #     future = MagicMock()
+    #     future.result = MagicMock()
+    #     mock_logger = MagicMock()
+    #     mock_get_logger.return_value = mock_logger
+    #     future.result.return_value = None
+    #     self.node.get_stack_done_callback(future)
+    #     mock_raw_stack.assert_not_called()
+    #     mock_resolve_expression.assert_not_called()
+    #     mock_route.assert_not_called()        
+    #     mock_logger.warn.assert_called_with("Stack getting failed. Try your request again.")
+>>>>>>> Stashed changes
 
     @patch('composer.muto_composer.get_package_share_directory')
     def test_resolve_expression_find(self, mock_get_package):

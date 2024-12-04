@@ -1,10 +1,16 @@
 import unittest
 from unittest.mock import MagicMock, patch, call
 import rclpy
+<<<<<<< Updated upstream
 from composer.launcher import Ros2LaunchParent
 import signal
 
 
+=======
+from composer.workflow.launcher import Ros2LaunchParent
+import signal
+
+>>>>>>> Stashed changes
 class TestLauncher(unittest.TestCase):
 
     def setUp(self):
@@ -15,6 +21,7 @@ class TestLauncher(unittest.TestCase):
         self._process = MagicMock()
         self.launch_arguments = MagicMock()
 
+<<<<<<< Updated upstream
 
 
 
@@ -23,17 +30,28 @@ class TestLauncher(unittest.TestCase):
 
 
 
+=======
+    def tearDown(self):
+        pass
+
+>>>>>>> Stashed changes
     @classmethod
     def setUpClass(cls) -> None:
         rclpy.init()
 
+<<<<<<< Updated upstream
 
 
+=======
+>>>>>>> Stashed changes
     @classmethod
     def tearDownClass(cls) -> None:
         rclpy.shutdown()
 
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
     def test_del_(self):
         Ros2LaunchParent.__del__(self)
         self.manager.shutdown.assert_called_once()
@@ -56,7 +74,10 @@ class TestLauncher(unittest.TestCase):
         self.assertIn(('launch_sensor', 'true'), returned_value)
         self.assertNotIn(('la0unch_sensor', 'false'), returned_value)
         
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
     def test_launch_a_launch_file(self):
         pass
     
@@ -80,9 +101,14 @@ class TestLauncher(unittest.TestCase):
         ros2launch_parent = Ros2LaunchParent(launch_arguments)
         ros2launch_parent._active_nodes = []
         ros2launch_parent._lock = MagicMock()
+<<<<<<< Updated upstream
         
         ros2launch_parent.kill()
         
+=======
+    
+        ros2launch_parent.kill()
+>>>>>>> Stashed changes
         ros2launch_parent._lock.__enter__.assert_called_once()
         mock_kill.assert_not_called()
 
@@ -92,9 +118,14 @@ class TestLauncher(unittest.TestCase):
         ros2launch_parent = Ros2LaunchParent(launch_arguments)
         ros2launch_parent._active_nodes = [{"node1": 1234}, {"node2": 5678}]
         ros2launch_parent._lock = MagicMock()
+<<<<<<< Updated upstream
         
         ros2launch_parent.kill()
         
+=======
+    
+        ros2launch_parent.kill()
+>>>>>>> Stashed changes
         ros2launch_parent._lock.__enter__.assert_called_once()
         mock_kill.assert_has_calls([call(1234, signal.SIGKILL), call(5678, signal.SIGKILL)], any_order=True)
         self.assertEqual(ros2launch_parent._active_nodes, [])
@@ -106,8 +137,12 @@ class TestLauncher(unittest.TestCase):
         ros2launch_parent._active_nodes = [{"node1": 1234}]
         ros2launch_parent._lock = MagicMock()
         
+<<<<<<< Updated upstream
         ros2launch_parent.kill()
         
+=======
+        ros2launch_parent.kill()    
+>>>>>>> Stashed changes
         ros2launch_parent._lock.__enter__.assert_called_once()
         mock_kill.assert_called_once_with(1234, signal.SIGKILL)
 
@@ -119,7 +154,10 @@ class TestLauncher(unittest.TestCase):
         ros2launch_parent._lock = MagicMock()
         
         ros2launch_parent.kill()
+<<<<<<< Updated upstream
         
+=======
+>>>>>>> Stashed changes
         ros2launch_parent._lock.__enter__.assert_called_once()
         mock_kill.assert_called_once_with(1234, signal.SIGKILL)
         self.assertEqual(ros2launch_parent._active_nodes, [])
@@ -130,14 +168,20 @@ class TestLauncher(unittest.TestCase):
         ros2launch_parent = Ros2LaunchParent(launch_arguments)
         ros2launch_parent._active_nodes = [{"node1": 1234}]
         ros2launch_parent._lock = MagicMock()
+<<<<<<< Updated upstream
         
+=======
+>>>>>>> Stashed changes
         mock_process = MagicMock()
         mock_process.is_alive.return_value = False
         ros2launch_parent._process = mock_process
         ros2launch_parent._stop_event = MagicMock()
         
         ros2launch_parent.kill()
+<<<<<<< Updated upstream
         
+=======
+>>>>>>> Stashed changes
         mock_process.join.assert_called_once_with(timeout=10.0)
         ros2launch_parent._stop_event.set.assert_called_once()
         self.assertEqual(ros2launch_parent._active_nodes, [])
@@ -148,18 +192,25 @@ class TestLauncher(unittest.TestCase):
         ros2launch_parent = Ros2LaunchParent(launch_arguments)
         ros2launch_parent._active_nodes = [{"node1": 1234}]
         ros2launch_parent._lock = MagicMock()
+<<<<<<< Updated upstream
         
+=======
+>>>>>>> Stashed changes
         mock_process = MagicMock()
         mock_process.is_alive.return_value = True
         ros2launch_parent._process = mock_process
         ros2launch_parent._stop_event = MagicMock()
         
         ros2launch_parent.kill()
+<<<<<<< Updated upstream
         
+=======
+>>>>>>> Stashed changes
         mock_process.terminate.assert_called_once()
         mock_process.join.assert_called_once_with(timeout=10.0)
         self.assertEqual(ros2launch_parent._active_nodes, [])
         
+<<<<<<< Updated upstream
         
     def test_event_handler_start(self):
         mock_action_start = MagicMock()
@@ -168,11 +219,21 @@ class TestLauncher(unittest.TestCase):
         self._active_nodes.append.assert_called_once_with({mock_action_start.process_name: mock_action_start.pid})
 
 
+=======
+    def test_event_handler_start(self):
+        mock_action_start = MagicMock()
+        Ros2LaunchParent._event_handler(self, 'start',mock_action_start, self._active_nodes, self._lock)
+        self._active_nodes.append.assert_called_once_with({mock_action_start.process_name: mock_action_start.pid})
+
+>>>>>>> Stashed changes
     def test_event_handler_exit(self):
         mock_action_exit = MagicMock()
         mock_action_exit.process_name = "test_node"
         mock_action_exit.pid = 24
+<<<<<<< Updated upstream
         
+=======
+>>>>>>> Stashed changes
         node_list = [{"test_node": 24}]
         Ros2LaunchParent._event_handler(MagicMock(), 'exit', mock_action_exit, node_list, self._lock)
         self.assertNotIn({"test_node": 24}, node_list)

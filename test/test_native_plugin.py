@@ -1,7 +1,11 @@
 import unittest
 import rclpy
 from unittest.mock import MagicMock, patch
+<<<<<<< Updated upstream
 from composer.native_plugin import MutoDefaultNativePlugin
+=======
+from composer.plugins.native_plugin import MutoDefaultNativePlugin
+>>>>>>> Stashed changes
 
 class TestNativePlugin(unittest.TestCase):
     
@@ -20,8 +24,13 @@ class TestNativePlugin(unittest.TestCase):
     def tearDownClass(cls) -> None:
         rclpy.shutdown()
     
+<<<<<<< Updated upstream
     @patch("composer.native_plugin.MutoDefaultNativePlugin.prep_native")
     @patch("composer.native_plugin.NativePlugin")
+=======
+    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.prep_native")
+    @patch("composer.plugins.native_plugin.NativePlugin")
+>>>>>>> Stashed changes
     def test_handle_native(self, mock_native_plugin, mock_prep_native):
         mock_native_plugin.request(start=True)
         mock_native_plugin.response(success=False, err_msg='')
@@ -33,8 +42,13 @@ class TestNativePlugin(unittest.TestCase):
         mock_prep_native.assert_called_once()
 
     @patch.object(MutoDefaultNativePlugin, "get_logger")
+<<<<<<< Updated upstream
     @patch("composer.native_plugin.MutoDefaultNativePlugin.prep_native")
     @patch("composer.native_plugin.NativePlugin")
+=======
+    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.prep_native")
+    @patch("composer.plugins.native_plugin.NativePlugin")
+>>>>>>> Stashed changes
     def test_handle_native_container(self, mock_native_plugin, mock_prep_native, mock_get_logger):
         mock_native_plugin.request(start=True)
         mock_native_plugin.response(success=False, err_msg='')
@@ -49,8 +63,13 @@ class TestNativePlugin(unittest.TestCase):
         mock_logger.warn.assert_called_once_with("Skipping NativePlugin as the stack is in container mode")
 
     @patch.object(MutoDefaultNativePlugin, "get_logger")
+<<<<<<< Updated upstream
     @patch("composer.native_plugin.MutoDefaultNativePlugin.prep_native")
     @patch("composer.native_plugin.NativePlugin")
+=======
+    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.prep_native")
+    @patch("composer.plugins.native_plugin.NativePlugin")
+>>>>>>> Stashed changes
     def test_handle_native_other(self, mock_native_plugin, mock_prep_native, mock_get_logger):
         mock_native_plugin.request(start=True)
         mock_native_plugin.response(success=False, err_msg='')
@@ -67,8 +86,13 @@ class TestNativePlugin(unittest.TestCase):
 
 
     @patch.object(MutoDefaultNativePlugin, "get_logger")
+<<<<<<< Updated upstream
     @patch("composer.native_plugin.MutoDefaultNativePlugin.prep_native")
     @patch("composer.native_plugin.NativePlugin")
+=======
+    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.prep_native")
+    @patch("composer.plugins.native_plugin.NativePlugin")
+>>>>>>> Stashed changes
     def test_handle_native_request_false(self, mock_native_plugin, mock_prep_native, mock_get_logger):
         mock_native_plugin.request = None
         mock_native_plugin.response(success=None, err_msg='')
@@ -85,22 +109,37 @@ class TestNativePlugin(unittest.TestCase):
         self.assertFalse(mock_native_plugin.response.success)
         self.assertEqual(mock_native_plugin.response.err_msg, "'NoneType' object has no attribute 'start'")
 
+<<<<<<< Updated upstream
     @patch("composer.native_plugin.MutoDefaultNativePlugin.handle_local_native")
     @patch("composer.native_plugin.MutoDefaultNativePlugin.handle_repo_native")
+=======
+    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.handle_local_native")
+    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.handle_repo_native")
+>>>>>>> Stashed changes
     def test_prep_native_repo(self, mock_repo_native, mock_local_native):
         self.node.prep_native("repo")
         mock_repo_native.assert_called_once()
         mock_local_native.assert_not_called()
         
+<<<<<<< Updated upstream
     @patch("composer.native_plugin.MutoDefaultNativePlugin.handle_local_native")
     @patch("composer.native_plugin.MutoDefaultNativePlugin.handle_repo_native")
+=======
+    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.handle_local_native")
+    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.handle_repo_native")
+>>>>>>> Stashed changes
     def test_prep_native_local(self, mock_repo_native, mock_local_native):
         self.node.prep_native("local")
         mock_repo_native.assert_not_called()
         mock_local_native.assert_called_once()
 
+<<<<<<< Updated upstream
     @patch("composer.native_plugin.MutoDefaultNativePlugin.handle_local_native")
     @patch("composer.native_plugin.MutoDefaultNativePlugin.handle_repo_native")
+=======
+    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.handle_local_native")
+    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.handle_repo_native")
+>>>>>>> Stashed changes
     def test_prep_native_nomode(self, mock_repo_native, mock_local_native):
         self.node.prep_native("nomode")
         mock_local_native.assert_not_called()
@@ -109,9 +148,15 @@ class TestNativePlugin(unittest.TestCase):
 
     @patch("os.path.join")
     @patch("os.path.expanduser")
+<<<<<<< Updated upstream
     @patch("composer.native_plugin.MutoDefaultNativePlugin.find_launcher")
     @patch("composer.native_plugin.RepoMode")
     @patch("composer.native_plugin.MutoArchive")
+=======
+    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.find_launcher")
+    @patch("composer.plugins.native_plugin.RepoMode")
+    @patch("composer.plugins.native_plugin.MutoArchive")
+>>>>>>> Stashed changes
     def test_handle_repo_native(self, mock_muto_archive, mock_repo_mode, mock_find_launcher, mock_os_expanduser, mock_os_join):
         self.node.current_stack = MagicMock()
         self.node.repo_pub = MagicMock()
@@ -147,7 +192,11 @@ class TestNativePlugin(unittest.TestCase):
  
     
     @patch("os.chdir")
+<<<<<<< Updated upstream
     @patch("composer.native_plugin.LocalMode")
+=======
+    @patch("composer.plugins.native_plugin.LocalMode")
+>>>>>>> Stashed changes
     def test_handle_local_native(self, mock_local_mode, mock_chdir):
         self.node.local_pub = MagicMock()
         self.node.current_stack = MagicMock()
