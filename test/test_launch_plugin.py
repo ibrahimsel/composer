@@ -1,10 +1,6 @@
 import unittest
 import rclpy
-<<<<<<< Updated upstream
-from composer.launch_plugin import MutoDefaultLaunchPlugin
-=======
 from composer.plugins.launch_plugin import MutoDefaultLaunchPlugin
->>>>>>> Stashed changes
 from unittest.mock import MagicMock, patch
 import asyncio
 from muto_msgs.srv import LaunchPlugin
@@ -109,17 +105,10 @@ class TestLaunchPlugin(unittest.TestCase):
         self.node.get_logger().info.assert_called_once_with("Argument: test:=mock")
     
     
-<<<<<<< Updated upstream
-    @patch("composer.launch_plugin.MutoDefaultLaunchPlugin.build_workspace")    
-    @patch("composer.launch_plugin.MutoDefaultLaunchPlugin.source_workspaces")    
-    @patch("os.chdir")
-    @patch("composer.launch_plugin.LaunchPlugin")
-=======
     # @patch("composer.plugins.launch_plugin.MutoDefaultLaunchPlugin.build_workspace")    
     @patch("composer.plugins.launch_plugin.MutoDefaultLaunchPlugin.source_workspaces")    
     @patch("os.chdir")
     @patch("composer.plugins.launch_plugin.LaunchPlugin")
->>>>>>> Stashed changes
     def test_handle_start_repo(self, mock_launch_plugin, mock_os, mock_source_ws, mock_build_ws):
         mock_launch_plugin.request(start=True)
         mock_launch_plugin.response(success=False, err_msg='')
@@ -135,15 +124,9 @@ class TestLaunchPlugin(unittest.TestCase):
         
     
     
-<<<<<<< Updated upstream
-    @patch("composer.launch_plugin.MutoDefaultLaunchPlugin.source_workspaces")    
-    @patch("os.chdir")
-    @patch("composer.launch_plugin.LaunchPlugin")
-=======
     @patch("composer.plugins.launch_plugin.MutoDefaultLaunchPlugin.source_workspaces")    
     @patch("os.chdir")
     @patch("composer.plugins.launch_plugin.LaunchPlugin")
->>>>>>> Stashed changes
     def test_handle_start_exception(self, mock_launch_plugin, mock_os, mock_ws):
         mock_launch_plugin.request = None
         mock_launch_plugin.response(success=None, err_msg='')
@@ -157,35 +140,6 @@ class TestLaunchPlugin(unittest.TestCase):
         self.assertFalse(mock_launch_plugin.response.success)
         self.assertEqual(mock_launch_plugin.response.err_msg,"'NoneType' object has no attribute 'start'")
     
-<<<<<<< Updated upstream
-    def test_on_launch_done(self):
-        self.node.launch_description = MagicMock()
-        self.node.launch_service = MagicMock()
-        future = MagicMock()
-        future.result.return_value = [None, None]
-        self.node.on_launch_done(future)
-        self.assertIsNone(self.node.launch_description)
-        self.assertIsNone(self.node.launch_service)
-
-    
-    def test_on_launch_done_exception(self):
-        self.node.launch_description = MagicMock()
-        self.node.launch_service = MagicMock()
-        future = MagicMock()
-        future.result.return_value = []
-        self.node.on_launch_done(future)
-        self.node.get_logger().warn.assert_called_once_with("Launch failed: not enough values to unpack (expected 2, got 0)")
-        
-                
-    @patch("composer.launch_plugin.subprocess")
-    def test_build_workspace(self, mock_subprocess):
-        self.node.build_workspace()
-        mock_subprocess.run.assert_called_once_with(['colcon', 'build', '--symlink-install', '--cmake-args', '-DCMAKE_BUILD_TYPE=Release'], check=True)
-    
-    
-    @patch("composer.launch_plugin.CoreTwin")
-    @patch("composer.launch_plugin.LaunchPlugin")    
-=======
     # def test_on_launch_done(self):
     #     self.node.launch_description = MagicMock()
     #     self.node.launch_service = MagicMock()
@@ -213,7 +167,6 @@ class TestLaunchPlugin(unittest.TestCase):
     
     @patch("composer.plugins.launch_plugin.CoreTwin")
     @patch("composer.plugins.launch_plugin.LaunchPlugin")    
->>>>>>> Stashed changes
     def test_handle_kill(self, mock_launch_plugin, mock_core_twin):
         mock_launch_plugin.request(start=True)
         mock_launch_plugin.response(success=False, err_msg='')
@@ -228,13 +181,8 @@ class TestLaunchPlugin(unittest.TestCase):
         self.assertEqual(returned_value, mock_launch_plugin.response)
     
     
-<<<<<<< Updated upstream
-    @patch("composer.launch_plugin.CoreTwin")
-    @patch("composer.launch_plugin.LaunchPlugin")    
-=======
     @patch("composer.plugins.launch_plugin.CoreTwin")
     @patch("composer.plugins.launch_plugin.LaunchPlugin")    
->>>>>>> Stashed changes
     def test_handle_kill_exception(self, mock_launch_plugin, mock_core_twin):
         mock_launch_plugin.request = None
         mock_launch_plugin.response(success=None, err_msg='')
