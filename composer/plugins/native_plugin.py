@@ -136,19 +136,18 @@ class MutoDefaultNativePlugin(Node):
                 cwd=repo_dir,
             )
 
+
+
+
+
+
+
+
+
+
     def checkout_and_check_submodules(
         self, target_dir: str, branch: str = "main"
     ) -> bool:
-        """
-        Ensure all submodules are checked out to the specified branch and are up-to-date.
-
-        Args:
-            target_dir (str): The path to the main repository.
-            branch (str): The branch to check out in submodules.
-
-        Returns:
-            bool: True if all submodules are up-to-date, False otherwise.
-        """
         all_submodules_up_to_date = True
 
         try:
@@ -199,6 +198,19 @@ class MutoDefaultNativePlugin(Node):
             all_submodules_up_to_date = False
 
         return all_submodules_up_to_date
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     def from_tar(self, tar_file_path: str):
         """Extract a compressed tar file (Not implemented)."""
