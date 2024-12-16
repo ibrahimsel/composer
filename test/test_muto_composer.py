@@ -49,6 +49,54 @@ class TestMutoComposer(unittest.TestCase):
         async_value = self.node.get_stack_cli.call_async.return_value
         async_value.add_done_callback.assert_called_once_with(self.node.get_stack_done_callback)
 
+
+    @patch('requests.get')
+    def test_bootstrap_happy_path(self, mock_get):
+        fake_stack_id = "stack_123"
+        mock_get.return_value.json = MagicMock(return_value={"stackId": fake_stack_id})
+
+        future_mock = MagicMock()
+        future_mock.add_done_callback = MagicMock()
+
+        self.node.get_stack_cli.call_async = MagicMock(return_value=future_mock)
+
+        self.node.bootstrap()
+
+        expected_url = f"{self.node.twin_url}/api/2/things/{self.node.thing_id}/features/stack/properties/current"
+        mock_get.assert_called_once_with(expected_url, headers={"Content-type": "application/json"})
+
+        self.node.get_stack_cli.call_async.assert_called_once()
+        called_req = self.node.get_stack_cli.call_async.call_args[0][0]
+        self.assertEqual(called_req.input, fake_stack_id)
+
+        future_mock.add_done_callback.assert_called_once()
+
+    # @patch('requests.get')
+    # def test_bootstrap_no_stack_id(self, mock_get):
+    #     mock_get.return_value.json = MagicMock(return_value={})
+
+    #     self.node.get_stack_cli.call_async = MagicMock()
+
+    #     with patch.object(self.node, 'get_logger') as mock_logger:
+    #         self.node.bootstrap()
+
+    #     self.node.get_stack_cli.call_async.assert_not_called()
+
+    #     mock_logger.error.assert_any_call("No default stack. Aborting bootstrap")
+
+    # @patch('requests.get')
+    # def test_bootstrap_request_exception(self, mock_get):
+    #     mock_get.side_effect = Exception("Network error")
+
+    #     self.node.get_stack_cli.call_async = MagicMock()
+
+    #     with patch.object(self.node, 'get_logger') as mock_logger:
+    #         self.node.bootstrap()
+
+    #     self.node.get_stack_cli.call_async.assert_not_called()
+
+    #     mock_logger.error.assert_any_call("Error while bootstrapping: Network error")
+    
     @patch("composer.muto_composer.MutoComposer.resolve_expression")
     @patch("composer.muto_composer.MutoComposer.publish_raw_stack")
     @patch("composer.muto_composer.Router.route")

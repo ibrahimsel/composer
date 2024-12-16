@@ -1,159 +1,373 @@
 import unittest
 import rclpy
-from unittest.mock import MagicMock, patch
-from composer.plugins.native_plugin import MutoDefaultNativePlugin
+import subprocess
+import os
+from unittest.mock import MagicMock, patch, call
+from composer.plugins.native_plugin import WORKSPACES_PATH, MutoDefaultNativePlugin
 
-class TestNativePlugin(unittest.TestCase):
-    
+class TestMutoDefaultNativePlugin(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        rclpy.init()
+
+    @classmethod
+    def tearDownClass(cls):
+        rclpy.shutdown()
+
     def setUp(self):
         self.node = MutoDefaultNativePlugin()
-        self.get_logger = MagicMock()
-    
+        self.node.get_logger = MagicMock()
+        self.node.current_stack = MagicMock()
+        self.node.current_stack.name = "Test Stack"
+        self.node.current_stack.url = "http://example.com/repo.git"
+        self.node.current_stack.branch = "main"
+
     def tearDown(self):
         self.node.destroy_node()
-        
-    @classmethod
-    def setUpClass(cls) -> None:
-        rclpy.init()
-        
-    @classmethod
-    def tearDownClass(cls) -> None:
-        rclpy.shutdown()
-    
-    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.prep_native")
-    @patch("composer.plugins.native_plugin.NativePlugin")
-    def test_handle_native(self, mock_native_plugin, mock_prep_native):
-        mock_native_plugin.request(start=True)
-        mock_native_plugin.response(success=False, err_msg='')
-        
+
+    @patch.object(MutoDefaultNativePlugin, "build_workspace")
+    @patch.object(MutoDefaultNativePlugin, "install_dependencies")
+    @patch.object(MutoDefaultNativePlugin, "from_git")
+    def test_handle_native_start_true_not_up_to_date(self, mock_from_git, mock_install_dependencies, mock_build_workspace):
+        request = MagicMock()
+        request.start = True
+        response = MagicMock()
         self.node.current_stack = MagicMock()
-        self.node.current_stack.mode = "native"
-        
-        self.node.handle_native(mock_native_plugin.request, mock_native_plugin.response)
-        mock_prep_native.assert_called_once()
+        self.node.current_stack.url = "http://github.com/composer.git"
+        self.node.current_stack.branch = "main"
+        self.node.is_up_to_date = False
 
-    @patch.object(MutoDefaultNativePlugin, "get_logger")
-    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.prep_native")
-    @patch("composer.plugins.native_plugin.NativePlugin")
-    def test_handle_native_container(self, mock_native_plugin, mock_prep_native, mock_get_logger):
-        mock_native_plugin.request(start=True)
-        mock_native_plugin.response(success=False, err_msg='')
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
-        
+        self.node.handle_native(request, response)
+
+        mock_from_git.assert_called_once_with(
+            repo_url=self.node.current_stack.url,
+            branch=self.node.current_stack.branch,
+        )
+        mock_install_dependencies.assert_called_once()
+        mock_build_workspace.assert_called_once()
+        self.assertEqual(response.err_msg, "Successful")
+        self.assertTrue(response.success)
+
+    @patch.object(MutoDefaultNativePlugin, "build_workspace")
+    @patch.object(MutoDefaultNativePlugin, "install_dependencies")
+    @patch.object(MutoDefaultNativePlugin, "from_git")
+    def test_handle_native_start_true_up_to_date(self, mock_from_git, mock_install_dependencies, mock_build_workspace):
+        request = MagicMock()
+        request.start = True
+        response = MagicMock()
         self.node.current_stack = MagicMock()
-        self.node.current_stack.mode = "container"
-        
-        self.node.handle_native(mock_native_plugin.request, mock_native_plugin.response)
-        mock_prep_native.assert_not_called()
-        mock_logger.warn.assert_called_once_with("Skipping NativePlugin as the stack is in container mode")
+        self.node.current_stack.url = "http://github.com/composer.git"
+        self.node.current_stack.branch = "main"
+        self.node.is_up_to_date = True
 
-    @patch.object(MutoDefaultNativePlugin, "get_logger")
-    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.prep_native")
-    @patch("composer.plugins.native_plugin.NativePlugin")
-    def test_handle_native_other(self, mock_native_plugin, mock_prep_native, mock_get_logger):
-        mock_native_plugin.request(start=True)
-        mock_native_plugin.response(success=False, err_msg='')
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
-        
+        self.node.handle_native(request, response)
+
+        mock_from_git.assert_called_once_with(
+            repo_url=self.node.current_stack.url,
+            branch=self.node.current_stack.branch,
+        )
+        mock_install_dependencies.assert_not_called()
+        mock_build_workspace.assert_not_called()
+        self.assertEqual(response.err_msg, "Successful")
+        self.assertTrue(response.success)
+
+    def test_handle_native_start_false(self):
+        request = MagicMock()
+        request.start = False
+        response = MagicMock()
+
+        self.node.handle_native(request, response)
+
+        self.assertEqual(response.err_msg, "Start flag not set in request.")
+        self.assertFalse(response.success)
+
+    def test_handle_native_no_current_stack(self):
+        request = MagicMock()
+        request.start = True
+        response = MagicMock()
+        self.node.current_stack = None
+
+        self.node.handle_native(request, response)
+
+        self.assertEqual(response.err_msg, "No current stack received.")
+        self.assertFalse(response.success)
+
+    @patch.object(MutoDefaultNativePlugin, "from_git")
+    def test_handle_native_exception(self, mock_from_git):
+        request = MagicMock()
+        request.start = True
+        response = MagicMock()
         self.node.current_stack = MagicMock()
-        self.node.current_stack.mode = "other_mode"
-        
-        self.node.handle_native(mock_native_plugin.request, mock_native_plugin.response)
-        mock_prep_native.assert_not_called()
-        mock_logger.warn.assert_called_once_with("No mode provided. Skipping")
-        self.assertTrue(mock_native_plugin.response.success)
+        mock_from_git.side_effect = Exception("Test Exception")
 
-    @patch.object(MutoDefaultNativePlugin, "get_logger")
-    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.prep_native")
-    @patch("composer.plugins.native_plugin.NativePlugin")
-    def test_handle_native_request_false(self, mock_native_plugin, mock_prep_native, mock_get_logger):
-        mock_native_plugin.request = None
-        mock_native_plugin.response(success=None, err_msg='')
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
-        
+        self.node.handle_native(request, response)
+
+        self.assertFalse(response.success)
+        self.assertEqual(response.err_msg, "Error: Test Exception")
+
+    @patch("os.makedirs")
+    @patch("shutil.rmtree")
+    @patch("os.path.exists")
+    @patch.object(MutoDefaultNativePlugin, "checkout_branch")
+    @patch("subprocess.run")
+    def test_clone_repository(self, mock_subprocess_run, mock_checkout_branch, mock_path_exists, mock_shutil_rmtree, mock_os_makedirs):
+        target_dir = "/mock/target/dir"
+        repo_url = "http://github.com/composer.git"
+        branch = "main"
+        mock_path_exists.return_value = True
+
+        self.node.clone_repository(repo_url, target_dir, branch)
+
+        mock_shutil_rmtree.assert_called_once_with(target_dir)
+        mock_os_makedirs.assert_called_once_with(target_dir, exist_ok=True)
+        mock_subprocess_run.assert_any_call(
+            ["git", "clone", "--recurse-submodules", repo_url, target_dir],
+            check=True,
+        )
+        mock_checkout_branch.assert_called_once_with(target_dir, branch)
+        self.assertFalse(self.node.is_up_to_date)
+
+    @patch("subprocess.check_output")
+    @patch("subprocess.run")
+    def test_update_repository_up_to_date(self, mock_subprocess_run, mock_check_output):
+        target_dir = "/mock/target/dir"
+        branch = "main"
+        mock_check_output.side_effect = ["abc123", "abc123"]
+
+        self.node.update_repository(target_dir, branch)
+
+        mock_subprocess_run.assert_any_call(
+            ["git", "fetch", "--recurse-submodules", "origin"],
+            check=True,
+            cwd=target_dir,
+        )
+        self.assertTrue(self.node.is_up_to_date)
+
+    @patch("subprocess.check_output")
+    @patch("subprocess.run")
+    def test_update_repository_not_up_to_date(self, mock_subprocess_run, mock_check_output):
+        target_dir = "/mock/target/dir"
+        branch = "main"
+        mock_check_output.side_effect = ["abc123", "def456"]
+
+        self.node.update_repository(target_dir, branch)
+
+        mock_subprocess_run.assert_any_call(
+            ["git", "fetch", "--recurse-submodules", "origin"],
+            check=True,
+            cwd=target_dir,
+        )
+        self.assertFalse(self.node.is_up_to_date)
+        mock_subprocess_run.assert_any_call(
+            ["git", "checkout", branch],
+            check=True,
+            cwd=target_dir,
+        )
+        mock_subprocess_run.assert_any_call(
+            ["git", "pull"],
+            check=True,
+            cwd=target_dir,
+        )
+
+    @patch("subprocess.run")
+    def test_checkout_branch_success(self, mock_subprocess_run):
+        repo_dir = "/mock/repo/dir"
+        branch = "feature"
+
+        self.node.checkout_branch(repo_dir, branch)
+
+        mock_subprocess_run.assert_called_once_with(
+            ["git", "checkout", branch],
+            check=True,
+            cwd=repo_dir,
+        )
+
+
+    @patch("subprocess.run")
+    @patch("os.path.exists")
+    @patch("shutil.rmtree")
+    def test_clean_build_workspace(self, mock_rmtree, mock_exists, mock_run):
+        mock_exists.return_value = True
+        self.node.get_workspace_dir = MagicMock(return_value="/mock/workspace")
+
+        self.node.clean_build_workspace()
+
+        calls = [
+            call("/mock/workspace/build"),
+            call("/mock/workspace/install")
+        ]
+        mock_rmtree.assert_has_calls(calls, any_order=True)
+
+    @patch("subprocess.run")
+    def test_build_workspace(self, mock_subprocess_run):
+        self.node.ignored_packages = []
+        self.node.get_workspace_dir = MagicMock(return_value="/mock/workspace")
+
+        self.node.build_workspace()
+
+        expected_command = [
+            "colcon",
+            "build",
+            "--symlink-install",
+            "--cmake-args",
+            "-DCMAKE_BUILD_TYPE=Release"
+        ]
+        mock_subprocess_run.assert_called_with(
+            expected_command,
+            check=True,
+            cwd="/mock/workspace",
+        )
+
+    @patch("subprocess.run")
+    def test_install_dependencies(self, mock_subprocess_run):
+        self.node.get_workspace_dir = MagicMock(return_value="/mock/workspace")
+
+        self.node.install_dependencies()
+
+        expected_calls = [
+            call(["rosdep", "update"], check=True),
+            call(
+                [
+                    "rosdep",
+                    "install",
+                    "--from-path",
+                    ".",
+                    "--ignore-src",
+                    "-r",
+                    "-y",
+                ],
+                check=False,
+                cwd="/mock/workspace",
+            )
+        ]
+        mock_subprocess_run.assert_has_calls(expected_calls)
+
+    def test_get_workspace_dir(self):
         self.node.current_stack = MagicMock()
-        self.node.current_stack.mode = "other_mode"
-        
-        self.node.handle_native(mock_native_plugin.request, mock_native_plugin.response)    
-            
-        mock_prep_native.assert_not_called()
-        mock_logger.warn.assert_called_once_with("Exception: 'NoneType' object has no attribute 'start'")
-        self.assertFalse(mock_native_plugin.response.success)
-        self.assertEqual(mock_native_plugin.response.err_msg, "'NoneType' object has no attribute 'start'")
+        self.node.current_stack.name = "Test Stack"
 
-    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.handle_local_native")
-    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.handle_repo_native")
-    def test_prep_native_repo(self, mock_repo_native, mock_local_native):
-        self.node.prep_native("repo")
-        mock_repo_native.assert_called_once()
-        mock_local_native.assert_not_called()
-        
-    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.handle_local_native")
-    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.handle_repo_native")
-    def test_prep_native_local(self, mock_repo_native, mock_local_native):
-        self.node.prep_native("local")
-        mock_repo_native.assert_not_called()
-        mock_local_native.assert_called_once()
+        workspace_dir = self.node.get_workspace_dir()
 
-    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.handle_local_native")
-    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.handle_repo_native")
-    def test_prep_native_nomode(self, mock_repo_native, mock_local_native):
-        self.node.prep_native("nomode")
-        mock_local_native.assert_not_called()
-        mock_repo_native.assert_not_called()
+        expected_dir = os.path.join(WORKSPACES_PATH, "Test_Stack")
+        self.assertEqual(workspace_dir, expected_dir)
 
+    def test_get_workspace_dir_no_stack(self):
+        self.node.current_stack = None
+
+        workspace_dir = self.node.get_workspace_dir()
+
+        self.assertEqual(workspace_dir, "")
+
+
+    @patch("os.path.exists")
     @patch("os.path.join")
-    @patch("os.path.expanduser")
-    @patch("composer.plugins.native_plugin.MutoDefaultNativePlugin.find_launcher")
-    @patch("composer.plugins.native_plugin.RepoMode")
-    @patch("composer.plugins.native_plugin.MutoArchive")
-    def test_handle_repo_native(self, mock_muto_archive, mock_repo_mode, mock_find_launcher, mock_os_expanduser, mock_os_join):
+    @patch.object(MutoDefaultNativePlugin, "checkout_and_check_submodules")
+    @patch.object(MutoDefaultNativePlugin, "clone_repository")
+    @patch.object(MutoDefaultNativePlugin, "update_repository")
+    def test_from_git(
+        self, mock_update_repository, mock_clone_repository, mock_checkout_and_check_submodules, mock_join, mock_exist
+    ):
         self.node.current_stack = MagicMock()
-        self.node.repo_pub = MagicMock()
-        self.node.archive = MagicMock()
-        launch_file_name = "launch_file"
-        self.node.current_stack.native.repo.launch_file_name = launch_file_name
-        self.node.handle_repo_native()
-        self.node.archive.decompress_into_local.assert_called_once()
-        mock_find_launcher.assert_called_once_with(f"{mock_os_join()}", launch_file_name)
-    
-    @patch("os.walk")
+        repo_url = "http://github.com/composer.git"
+        branch = "main"
+        
+        self.node.from_git(repo_url, branch)
+        mock_update_repository.assert_called_once_with(mock_join(), "main")
+        mock_clone_repository.assert_not_called()
+        mock_checkout_and_check_submodules.assert_called_once_with(mock_join(), "main")
+        mock_join.assert_called()
+        mock_exist.assert_called_once()
+      
+      
+      
+    @patch("os.path.exists")
     @patch("os.path.join")
-    def test_find_launcher(self, mock_join, mock_walk):
-        ws_path = "/mock_ws"
-        launcher_name = "mock_launcher"
-        mock_walk.return_value = [("root_1"),("dirs_1"),("files_1")], [("root_2"),("dirs_2"),("mock_launcher")], [("root_3"),("dirs_3"),("files_3")]
-        returned_value = self.node.find_launcher(ws_path, launcher_name)
-        mock_walk.assert_called_once_with("/mock_ws")
-        mock_join.assert_called_once_with("root_2", "mock_launcher")
-        self.assertEqual(returned_value, mock_join())        
- 
-    @patch("os.walk")
-    @patch("os.path.join")
-    def test_find_launcher_none(self, mock_join, mock_walk):
-        ws_path = "/mock_ws"
-        launcher_name = "mock_launcher"
-        returned_value = self.node.find_launcher(ws_path, launcher_name)
-        mock_walk.assert_called_once_with("/mock_ws")
+    @patch.object(MutoDefaultNativePlugin, "checkout_and_check_submodules")
+    @patch.object(MutoDefaultNativePlugin, "clone_repository")
+    @patch.object(MutoDefaultNativePlugin, "update_repository")
+    def test_from_git_no_current_stack(
+        self, mock_update_repository, mock_clone_repository, mock_checkout_and_check_submodules, mock_join, mock_exist
+    ):
+        self.node.current_stack = None
+        repo_url = "http://github.com/composer.git"
+        branch = "main"
+        self.node.from_git(repo_url, branch)
+        
+        mock_update_repository.assert_not_called()
+        mock_clone_repository.assert_not_called()
+        mock_checkout_and_check_submodules.assert_not_called()
         mock_join.assert_not_called()
-        self.assertEqual(returned_value, None)  
-    
-    @patch("os.chdir")
-    @patch("composer.plugins.native_plugin.LocalMode")
-    def test_handle_local_native(self, mock_local_mode, mock_chdir):
-        self.node.local_pub = MagicMock()
-        self.node.current_stack = MagicMock()
-        ws_full_path = "/mock/ws/full/path"
-        ws_relative_path = "/mock/ws/relative/path"
+        mock_exist.assert_not_called()
         
-        self.node.current_stack.native.local.launcher_path_relative_to_ws = ws_relative_path
-        self.node.current_stack.native.local.ws_full_path = ws_full_path
         
-        self.node.handle_local_native()
-        mock_chdir.assert_called_once_with(ws_full_path)
-        mock_local_mode.assert_called_once()
-        self.node.local_pub.publish.assert_called_once_with(mock_local_mode())
+    @patch("subprocess.check_output")
+    @patch("subprocess.run")
+    def test_checkout_and_check_submodules(self, mock_run, mock_check_output):
+        mock_check_output.side_effect = []
+        pass
+
         
+    @patch("subprocess.check_output")
+    @patch("subprocess.run")
+    def test_all_submodules_up_to_date(self, mock_run, mock_check_output):
+        mock_check_output.side_effect = [
+            "submodule1\nsubmodule2",
+            "local_commit_1",
+            "local_commit_1",
+            "local_commit_2",
+            "local_commit_2",
+        ]
+
+        target_dir = self.node.get_workspace_dir()
+        result = self.node.checkout_and_check_submodules(target_dir, branch="test_branch")
+
+        self.assertTrue(result)
+        calls = [call.args for call in mock_run.call_args_list]
+        checkout_calls = [c for c in calls if "checkout" in c[0]]
+        self.assertEqual(len(checkout_calls), 2)
+
+    @patch("subprocess.check_output")
+    @patch("subprocess.run")
+    def test_submodule_not_up_to_date(self, mock_run, mock_check_output):
+        mock_check_output.side_effect = [
+            "submodule1",
+            "local_commit_1",
+            "remote_commit_1_different",
+        ]
+
+        target_dir = self.node.get_workspace_dir()
+        result = self.node.checkout_and_check_submodules(target_dir, branch="test_branch")
+
+        self.assertFalse(result)
+
+        calls = [call.args for call in mock_run.call_args_list]
+        pull_calls = [c for c in calls if "pull" in c[0]]
+        self.assertEqual(len(pull_calls), 1)
+
+    @patch("subprocess.check_output")
+    @patch("subprocess.run")
+    def test_submodule_checkout_failure(self, mock_run, mock_check_output):
+        def side_effect_check_output(args, text=True, cwd=None):
+            if "rev-parse" in args:
+                raise subprocess.CalledProcessError(1, args, "Error message")
+            return "submodule1"
+
+        mock_check_output.side_effect = side_effect_check_output
+
+        target_dir = self.node.get_workspace_dir()
+        result = self.node.checkout_and_check_submodules(target_dir, branch="test_branch")
+        
+        self.assertFalse(result)
+
+    @patch("subprocess.check_output")
+    @patch("subprocess.run")
+    def test_no_submodules_or_command_fail(self, mock_run, mock_check_output):
+        mock_check_output.side_effect = subprocess.CalledProcessError(
+            1, ["git", "submodule", "--quiet", "foreach", "echo $sm_path"], "Error"
+        )
+
+        target_dir = self.node.get_workspace_dir()
+        result = self.node.checkout_and_check_submodules(target_dir, branch="test_branch")
+
+        self.assertFalse(result)
