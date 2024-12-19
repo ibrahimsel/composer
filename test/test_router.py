@@ -28,5 +28,12 @@ class TestRouter(unittest.TestCase):
         main_route.route(self.payload.get('action', ''))
         self.pipeline.execute_pipeline.assert_called_once()
         
+    def test_route_no_pipeline(self):
+        self.pipelines = {'test':None}
+        main_route = Router(self.pipelines)
+        main_route.route(self.payload.get('action', ''))
+        self.pipeline.execute_pipeline.assert_not_called()
+        
+        
 if __name__ == "__main__":
     unittest.main()
