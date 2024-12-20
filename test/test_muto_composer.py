@@ -55,7 +55,47 @@ class TestMutoComposer(unittest.TestCase):
         async_value.add_done_callback.assert_called_once_with(
             self.node.get_stack_done_callback
         )
-    
+        
+        
+    @patch.object(MutoComposer, "get_logger")
+    @patch('json.loads')
+    def test_on_stack_callback_general_exception(self, mock_json_loads, mock_get_logger):
+        mock_json_loads.side_effect = Exception("General error")
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+        stack_msg = MagicMock()
+        stack_msg.payload = "{}"
+
+        self.node.on_stack_callback(stack_msg)
+
+        mock_logger.error.assert_called_with("Error parsing stack from agent: General error")
+        
+    @patch.object(MutoComposer, "get_logger")
+    def test_on_stack_callback_invalid_json(self, mock_get_logger):
+        stack_msg = MagicMock()
+        stack_msg.payload = "Invalid JSON"
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+        self.node.on_stack_callback(stack_msg)
+
+        mock_logger.error.assert_called_with("Invalid JSON in payload: Expecting value: line 1 column 1 (char 0)")
+
+
+    @patch.object(MutoComposer, "get_logger")
+    @patch('json.loads')
+    def test_on_stack_callback_missing_key(self, mock_json_loads, mock_get_logger):
+        mock_json_loads.return_value = {"not_value": {"stackId": "test_stack_id"}}
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+        stack_msg = MagicMock()
+        stack_msg.payload = '{"not_value": {"stackId": "test_stack_id"}}'
+
+        self.node.on_stack_callback(stack_msg)
+
+        mock_logger.error.assert_called_with("Payload is missing key: 'value'")
+        
+        
+
     @patch.object(MutoComposer, "get_logger")
     def test_activate_success(self, mock_get_logger):
         self.node.bootstrap_pub = MagicMock()
@@ -234,6 +274,13 @@ class TestMutoComposer(unittest.TestCase):
         MutoComposer.publish_raw_stack(self, stack)
         self.raw_stack_publisher.publish.assert_called_once_with(expected_value)
 
-
+    @patch("composer.muto_composer.Pipeline")
+    def test_init_pipelines(self, mock_pipeline): 
+        pipeline_config = [{"name": "test_name", "pipeline":"test_pipeline", "compensation":"test_compensation"}]
+        
+        self.node.init_pipelines(pipeline_config)
+        
+        mock_pipeline.assert_called_once_with('test_name', 'test_pipeline', 'test_compensation')
+        
 if __name__ == "__main__":
     unittest.main()
