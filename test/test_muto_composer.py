@@ -3,14 +3,17 @@ import rclpy
 import json
 from composer.muto_composer import MutoComposer
 from unittest.mock import MagicMock, patch
+from muto_msgs.srv import CoreTwin
 from std_msgs.msg import String
-from ament_index_python.packages import get_package_share_directory
-from rclpy.node import Node
+from rclpy.task import Future
+from muto_msgs.msg import MutoAction
+
 
 class TestMutoComposer(unittest.TestCase):
-    
+    @patch("composer.muto_composer.MutoComposer.init_pipelines")
     @patch("composer.muto_composer.Pipeline")
-    def setUp(self, mock_pipeline) -> None:
+    @patch("composer.muto_composer.MutoComposer.bootstrap")
+    def setUp(self, mock_bootstrap, mock_pipeline, mock_pipe) -> None:
         self.node = MutoComposer()
         self.incoming_stack_topic = MagicMock()
         self.get_stack_cli = MagicMock()
@@ -19,27 +22,29 @@ class TestMutoComposer(unittest.TestCase):
         self.raw_stack_publisher = MagicMock()
         self.pipeline_file_path = "/composer/config/config.yaml"
         self.router = MagicMock()
+        self.node.pipelines = MagicMock()
+
         self.logger = MagicMock()
         self.get_logger = MagicMock()
-                
+
     def tearDown(self) -> None:
         self.node.destroy_node()
-    
+
     @classmethod
     def setUpClass(cls) -> None:
         rclpy.init()
-                
+
     @classmethod
     def tearDownClass(cls) -> None:
         rclpy.shutdown()
-        
+
     @patch("json.loads")
     def test_on_stack_callback(self, mock_json):
         stack_msg = MagicMock()
         self.node.get_logger = MagicMock()
         self.node.get_stack_cli = MagicMock()
         self.node.get_stack_cli.call_async = MagicMock()
-        
+
         stack_msg.method = "start"
         stack_msg.payload = json.dumps({"value": {"stackId": "8"}})
         mock_json.return_value = {"value": {"stackId": "8"}}
@@ -47,71 +52,124 @@ class TestMutoComposer(unittest.TestCase):
         self.assertEqual(self.node.method, "start")
         self.node.get_stack_cli.call_async.assert_called_once()
         async_value = self.node.get_stack_cli.call_async.return_value
-        async_value.add_done_callback.assert_called_once_with(self.node.get_stack_done_callback)
+        async_value.add_done_callback.assert_called_once_with(
+            self.node.get_stack_done_callback
+        )
+    
+    @patch.object(MutoComposer, "get_logger")
+    def test_activate_success(self, mock_get_logger):
+        self.node.bootstrap_pub = MagicMock()
 
+        future = MagicMock(spec=Future)
+        future_result = MagicMock()
+        future_result.output = json.dumps({"stackId": "test_stack_id"})
+        future.result.return_value = future_result
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+        self.node.activate(future)
 
-    @patch('requests.get')
-    def test_bootstrap_happy_path(self, mock_get):
-        fake_stack_id = "stack_123"
-        mock_get.return_value.json = MagicMock(return_value={"stackId": fake_stack_id})
+        self.node.bootstrap_pub.publish.assert_called_once()
+        published_msg = self.node.bootstrap_pub.publish.call_args[0][0]
+        self.assertIsInstance(published_msg, MutoAction)
+        self.assertEqual(published_msg.method, "start")
 
+        payload = json.loads(published_msg.payload)
+        self.assertIn("value", payload)
+        self.assertIn("stackId", payload["value"])
+        self.assertEqual(payload["value"]["stackId"], "test_stack_id")
+        mock_logger.info.assert_called_once_with("Edge Device bootstrap done.")
+
+    @patch.object(MutoComposer, "get_logger")
+    def test_activate_no_default_stack(self, mock_get_logger):
+        self.node.bootstrap_pub = MagicMock()
+        future = MagicMock(spec=Future)
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+        future.result.side_effect = AttributeError()
+
+        self.node.activate(future)
+
+        self.node.bootstrap_pub.publish.assert_not_called()
+
+        mock_logger.error.assert_any_call("No default stack. Aborting bootstrap")
+
+    @patch.object(MutoComposer, "get_logger")
+    def test_activate_generic_exception(self, mock_get_logger):
+        self.node.bootstrap_pub = MagicMock()
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+        future = MagicMock(spec=Future)
+        future.result.side_effect = Exception("Unexpected error")
+
+        self.node.activate(future)
+
+        self.node.bootstrap_pub.publish.assert_not_called()
+
+        mock_logger.error.assert_any_call("Error while bootstrapping: Unexpected error")
+
+    @patch.object(MutoComposer, "get_logger")
+    @patch("requests.get")
+    def test_bootstrap_success(self, mock_requests_get, mock_get_logger):
+        self.node.get_stack_cli = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"stackId": "my-stack-id"}
+        mock_requests_get.return_value = mock_response
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
         future_mock = MagicMock()
-        future_mock.add_done_callback = MagicMock()
-
-        self.node.get_stack_cli.call_async = MagicMock(return_value=future_mock)
+        self.node.get_stack_cli.call_async.return_value = future_mock
 
         self.node.bootstrap()
 
         expected_url = f"{self.node.twin_url}/api/2/things/{self.node.thing_id}/features/stack/properties/current"
-        mock_get.assert_called_once_with(expected_url, headers={"Content-type": "application/json"})
+        mock_requests_get.assert_called_once_with(
+            expected_url,
+            headers={"Content-type": "application/json"},
+        )
 
         self.node.get_stack_cli.call_async.assert_called_once()
-        called_req = self.node.get_stack_cli.call_async.call_args[0][0]
-        self.assertEqual(called_req.input, fake_stack_id)
+        args = self.node.get_stack_cli.call_async.call_args
+        req = args[0][0]
+        self.assertIsInstance(req, CoreTwin.Request)
+        self.assertEqual(req.input, "my-stack-id")
 
-        future_mock.add_done_callback.assert_called_once()
+        future_mock.add_done_callback.assert_called_once_with(self.node.activate)
 
-    # @patch('requests.get')
-    # def test_bootstrap_no_stack_id(self, mock_get):
-    #     mock_get.return_value.json = MagicMock(return_value={})
+        mock_logger.info.assert_any_call("Edge Device bootstrapping...")
 
-    #     self.node.get_stack_cli.call_async = MagicMock()
+    @patch.object(MutoComposer, "get_logger")
+    def test_bootstrap_no_default_stack(self, mock_get_logger):
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+        self.node.get_stack_cli = MagicMock()
+        with patch("requests.get", side_effect=AttributeError("No default stack")):
+            self.node.bootstrap()
 
-    #     with patch.object(self.node, 'get_logger') as mock_logger:
-    #         self.node.bootstrap()
+        self.node.get_stack_cli.call_async.assert_not_called()
 
-    #     self.node.get_stack_cli.call_async.assert_not_called()
+        mock_logger.error.assert_called_once_with(
+            "No default stack. Aborting bootstrap"
+        )
 
-    #     mock_logger.error.assert_any_call("No default stack. Aborting bootstrap")
-
-    # @patch('requests.get')
-    # def test_bootstrap_request_exception(self, mock_get):
-    #     mock_get.side_effect = Exception("Network error")
-
-    #     self.node.get_stack_cli.call_async = MagicMock()
-
-    #     with patch.object(self.node, 'get_logger') as mock_logger:
-    #         self.node.bootstrap()
-
-    #     self.node.get_stack_cli.call_async.assert_not_called()
-
-    #     mock_logger.error.assert_any_call("Error while bootstrapping: Network error")
-    
     @patch("composer.muto_composer.MutoComposer.resolve_expression")
     @patch("composer.muto_composer.MutoComposer.publish_raw_stack")
     @patch("composer.muto_composer.Router.route")
-    def test_get_stack_done_callback(self, mock_route, mock_raw_stack, mock_resolve_expression):
+    def test_get_stack_done_callback(
+        self, mock_route, mock_raw_stack, mock_resolve_expression
+    ):
         future = MagicMock()
         future.result = MagicMock()
         self.node.get_stack_done_callback(future)
         mock_route.assert_not_called()
         mock_raw_stack.assert_called_once()
         mock_resolve_expression.assert_called_once()
-        
+
     @patch("composer.muto_composer.MutoComposer.resolve_expression")
     @patch("composer.muto_composer.MutoComposer.publish_raw_stack")
     @patch("composer.muto_composer.Router.route")
-    def test_get_stack_done_callback_if(self, mock_route, mock_raw_stack, mock_resolve_expression):
+    def test_get_stack_done_callback_if(
+        self, mock_route, mock_raw_stack, mock_resolve_expression
+    ):
         future = MagicMock()
         future.result = MagicMock()
         self.node.method = "apply"
@@ -120,55 +178,62 @@ class TestMutoComposer(unittest.TestCase):
         mock_resolve_expression.assert_called_once()
         mock_route.assert_called_once()
 
-    @patch('composer.muto_composer.get_package_share_directory')
+    @patch("composer.muto_composer.get_package_share_directory")
     def test_resolve_expression_find(self, mock_get_package):
         mock_get_package.return_value = "/mock_path/test_pkg"
-        input = "$(find test_pkg)"
-        self.node.resolve_expression(input)
+        resolve_expression_input = "$(find test_pkg)"
+        self.node.resolve_expression(resolve_expression_input)
         mock_get_package.assert_called()
-        
-    @patch('composer.muto_composer.os.getenv')
+
+    @patch("composer.muto_composer.os.getenv")
     def test_resolve_expression_env(self, mock_get_env):
         mock_get_env.return_value = "test_env"
-        input = "$(env test_env)"
-        self.node.resolve_expression(input)
+        resolve_expression_input = "$(env test_env)"
+        self.node.resolve_expression(resolve_expression_input)
         mock_get_env.assert_called()
-        
-    @patch.object(MutoComposer, 'get_logger')    
+
+    @patch.object(MutoComposer, "get_logger")
     def test_resolve_expression_no_expression(self, mock_get_logger):
         mock_logger = MagicMock()
         mock_get_logger.return_value = mock_logger
-        input = "$(test_exp test_pkg)"
-        self.node.resolve_expression(input)
-        mock_logger.info.assert_called_with("No muto expression found in the given string")
-        
-    @patch.object(MutoComposer, 'get_logger')
+        resolve_expression_input = "$(test_exp test_pkg)"
+        self.node.resolve_expression(resolve_expression_input)
+        mock_logger.info.assert_called_with(
+            "No muto expression found in the given string"
+        )
+
+    @patch.object(MutoComposer, "get_logger")
     def test_resolve_expression_key_error(self, mock_get_logger):
         mock_logger = MagicMock()
         mock_get_logger.return_value = mock_logger
         input_value = "$(find demo_pkg)"
-        with patch('composer.muto_composer.get_package_share_directory', side_effect=KeyError):
+        with patch(
+            "composer.muto_composer.get_package_share_directory", side_effect=KeyError
+        ):
             result = self.node.resolve_expression(input_value)
         mock_logger.warn.assert_called_with("demo_pkg does not exist.")
         self.assertEqual(result, input_value)
-        
-    @patch.object(MutoComposer, 'get_logger')
+
+    @patch.object(MutoComposer, "get_logger")
     def test_resolve_expression_exception(self, mock_get_logger):
         mock_logger = MagicMock()
         mock_get_logger.return_value = mock_logger
         input_value = "$(find demo_pkg)"
 
-        with patch('composer.muto_composer.get_package_share_directory', side_effect=Exception):
+        with patch(
+            "composer.muto_composer.get_package_share_directory", side_effect=Exception
+        ):
             result = self.node.resolve_expression(input_value)
 
         mock_logger.info.assert_called_with("Exception occurred: ")
         self.assertEqual(result, input_value)
-        
+
     def test_publish_raw_stack(self):
         stack = "test_stack"
         expected_value = String(data=stack)
         MutoComposer.publish_raw_stack(self, stack)
         self.raw_stack_publisher.publish.assert_called_once_with(expected_value)
-                        
+
+
 if __name__ == "__main__":
     unittest.main()

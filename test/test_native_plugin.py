@@ -1,9 +1,12 @@
-import unittest
-import rclpy
-import subprocess
 import os
-from unittest.mock import MagicMock, patch, call
+import subprocess
+import unittest
+from unittest.mock import MagicMock, call, patch
+
+import rclpy
+
 from composer.plugins.native_plugin import WORKSPACES_PATH, MutoDefaultNativePlugin
+
 
 class TestMutoDefaultNativePlugin(unittest.TestCase):
 
@@ -29,7 +32,9 @@ class TestMutoDefaultNativePlugin(unittest.TestCase):
     @patch.object(MutoDefaultNativePlugin, "build_workspace")
     @patch.object(MutoDefaultNativePlugin, "install_dependencies")
     @patch.object(MutoDefaultNativePlugin, "from_git")
-    def test_handle_native_start_true_not_up_to_date(self, mock_from_git, mock_install_dependencies, mock_build_workspace):
+    def test_handle_native_start_true_not_up_to_date(
+        self, mock_from_git, mock_install_dependencies, mock_build_workspace
+    ):
         request = MagicMock()
         request.start = True
         response = MagicMock()
@@ -52,7 +57,9 @@ class TestMutoDefaultNativePlugin(unittest.TestCase):
     @patch.object(MutoDefaultNativePlugin, "build_workspace")
     @patch.object(MutoDefaultNativePlugin, "install_dependencies")
     @patch.object(MutoDefaultNativePlugin, "from_git")
-    def test_handle_native_start_true_up_to_date(self, mock_from_git, mock_install_dependencies, mock_build_workspace):
+    def test_handle_native_start_true_up_to_date(
+        self, mock_from_git, mock_install_dependencies, mock_build_workspace
+    ):
         request = MagicMock()
         request.start = True
         response = MagicMock()
@@ -111,7 +118,14 @@ class TestMutoDefaultNativePlugin(unittest.TestCase):
     @patch("os.path.exists")
     @patch.object(MutoDefaultNativePlugin, "checkout_branch")
     @patch("subprocess.run")
-    def test_clone_repository(self, mock_subprocess_run, mock_checkout_branch, mock_path_exists, mock_shutil_rmtree, mock_os_makedirs):
+    def test_clone_repository(
+        self,
+        mock_subprocess_run,
+        mock_checkout_branch,
+        mock_path_exists,
+        mock_shutil_rmtree,
+        mock_os_makedirs,
+    ):
         target_dir = "/mock/target/dir"
         repo_url = "http://github.com/composer.git"
         branch = "main"
@@ -146,10 +160,12 @@ class TestMutoDefaultNativePlugin(unittest.TestCase):
 
     @patch("subprocess.check_output")
     @patch("subprocess.run")
-    def test_update_repository_not_up_to_date(self, mock_subprocess_run, mock_check_output):
+    def test_update_repository_not_up_to_date(
+        self, mock_subprocess_run, mock_check_output
+    ):
         target_dir = "/mock/target/dir"
         branch = "main"
-        mock_check_output.side_effect = ["abc123", "def456"]
+        mock_check_output.side_effect = ["start", "stop"]
 
         self.node.update_repository(target_dir, branch)
 
@@ -183,20 +199,15 @@ class TestMutoDefaultNativePlugin(unittest.TestCase):
             cwd=repo_dir,
         )
 
-
-    @patch("subprocess.run")
     @patch("os.path.exists")
     @patch("shutil.rmtree")
-    def test_clean_build_workspace(self, mock_rmtree, mock_exists, mock_run):
+    def test_clean_build_workspace(self, mock_rmtree, mock_exists):
         mock_exists.return_value = True
         self.node.get_workspace_dir = MagicMock(return_value="/mock/workspace")
 
         self.node.clean_build_workspace()
 
-        calls = [
-            call("/mock/workspace/build"),
-            call("/mock/workspace/install")
-        ]
+        calls = [call("/mock/workspace/build"), call("/mock/workspace/install")]
         mock_rmtree.assert_has_calls(calls, any_order=True)
 
     @patch("subprocess.run")
@@ -211,7 +222,7 @@ class TestMutoDefaultNativePlugin(unittest.TestCase):
             "build",
             "--symlink-install",
             "--cmake-args",
-            "-DCMAKE_BUILD_TYPE=Release"
+            "-DCMAKE_BUILD_TYPE=Release",
         ]
         mock_subprocess_run.assert_called_with(
             expected_command,
@@ -239,7 +250,7 @@ class TestMutoDefaultNativePlugin(unittest.TestCase):
                 ],
                 check=False,
                 cwd="/mock/workspace",
-            )
+            ),
         ]
         mock_subprocess_run.assert_has_calls(expected_calls)
 
@@ -259,55 +270,54 @@ class TestMutoDefaultNativePlugin(unittest.TestCase):
 
         self.assertEqual(workspace_dir, "")
 
-
     @patch("os.path.exists")
     @patch("os.path.join")
     @patch.object(MutoDefaultNativePlugin, "checkout_and_check_submodules")
     @patch.object(MutoDefaultNativePlugin, "clone_repository")
     @patch.object(MutoDefaultNativePlugin, "update_repository")
     def test_from_git(
-        self, mock_update_repository, mock_clone_repository, mock_checkout_and_check_submodules, mock_join, mock_exist
+        self,
+        mock_update_repository,
+        mock_clone_repository,
+        mock_checkout_and_check_submodules,
+        mock_join,
+        mock_exist,
     ):
         self.node.current_stack = MagicMock()
         repo_url = "http://github.com/composer.git"
         branch = "main"
-        
+
         self.node.from_git(repo_url, branch)
         mock_update_repository.assert_called_once_with(mock_join(), "main")
         mock_clone_repository.assert_not_called()
         mock_checkout_and_check_submodules.assert_called_once_with(mock_join(), "main")
         mock_join.assert_called()
         mock_exist.assert_called_once()
-      
-      
-      
+
     @patch("os.path.exists")
     @patch("os.path.join")
     @patch.object(MutoDefaultNativePlugin, "checkout_and_check_submodules")
     @patch.object(MutoDefaultNativePlugin, "clone_repository")
     @patch.object(MutoDefaultNativePlugin, "update_repository")
     def test_from_git_no_current_stack(
-        self, mock_update_repository, mock_clone_repository, mock_checkout_and_check_submodules, mock_join, mock_exist
+        self,
+        mock_update_repository,
+        mock_clone_repository,
+        mock_checkout_and_check_submodules,
+        mock_join,
+        mock_exist,
     ):
         self.node.current_stack = None
         repo_url = "http://github.com/composer.git"
         branch = "main"
         self.node.from_git(repo_url, branch)
-        
+
         mock_update_repository.assert_not_called()
         mock_clone_repository.assert_not_called()
         mock_checkout_and_check_submodules.assert_not_called()
         mock_join.assert_not_called()
         mock_exist.assert_not_called()
-        
-        
-    @patch("subprocess.check_output")
-    @patch("subprocess.run")
-    def test_checkout_and_check_submodules(self, mock_run, mock_check_output):
-        mock_check_output.side_effect = []
-        pass
 
-        
     @patch("subprocess.check_output")
     @patch("subprocess.run")
     def test_all_submodules_up_to_date(self, mock_run, mock_check_output):
@@ -320,7 +330,9 @@ class TestMutoDefaultNativePlugin(unittest.TestCase):
         ]
 
         target_dir = self.node.get_workspace_dir()
-        result = self.node.checkout_and_check_submodules(target_dir, branch="test_branch")
+        result = self.node.checkout_and_check_submodules(
+            target_dir, branch="test_branch"
+        )
 
         self.assertTrue(result)
         calls = [call.args for call in mock_run.call_args_list]
@@ -337,7 +349,9 @@ class TestMutoDefaultNativePlugin(unittest.TestCase):
         ]
 
         target_dir = self.node.get_workspace_dir()
-        result = self.node.checkout_and_check_submodules(target_dir, branch="test_branch")
+        result = self.node.checkout_and_check_submodules(
+            target_dir, branch="test_branch"
+        )
 
         self.assertFalse(result)
 
@@ -356,8 +370,10 @@ class TestMutoDefaultNativePlugin(unittest.TestCase):
         mock_check_output.side_effect = side_effect_check_output
 
         target_dir = self.node.get_workspace_dir()
-        result = self.node.checkout_and_check_submodules(target_dir, branch="test_branch")
-        
+        result = self.node.checkout_and_check_submodules(
+            target_dir, branch="test_branch"
+        )
+
         self.assertFalse(result)
 
     @patch("subprocess.check_output")
@@ -368,6 +384,8 @@ class TestMutoDefaultNativePlugin(unittest.TestCase):
         )
 
         target_dir = self.node.get_workspace_dir()
-        result = self.node.checkout_and_check_submodules(target_dir, branch="test_branch")
+        result = self.node.checkout_and_check_submodules(
+            target_dir, branch="test_branch"
+        )
 
         self.assertFalse(result)
