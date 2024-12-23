@@ -11,6 +11,7 @@ class TestComposePlugin(unittest.TestCase):
         self.node = MutoDefaultComposePlugin()
         self.node.incoming_stack = None
         self.node.composed_stack_publisher = MagicMock()
+        self.node.get_logger = MagicMock()
 
     def tearDown(self):
         self.node.destroy_node()
@@ -30,6 +31,9 @@ class TestComposePlugin(unittest.TestCase):
         )
         self.node.handle_raw_stack(stack_msg)
         self.assertEqual(self.node.incoming_stack, json.loads(stack_msg.data))
+        self.node.get_logger().info.assert_called_once_with(
+            "Received raw stack and parsed successfully."
+        )
 
     @patch.object(MutoDefaultComposePlugin, "parse_stack")
     def test_publish_composed_stack(self, mock_parse_stack):
@@ -40,6 +44,7 @@ class TestComposePlugin(unittest.TestCase):
         self.node.composed_stack_publisher.publish.assert_called_once_with(
             mock_parse_stack()
         )
+        self.node.get_logger().info.assert_called_once_with("Published composed stack.")
 
     @patch("composer.plugins.compose_plugin.ComposePlugin")
     @patch.object(MutoDefaultComposePlugin, "publish_composed_stack")
@@ -55,6 +60,9 @@ class TestComposePlugin(unittest.TestCase):
         self.assertTrue(response.success)
         self.assertEqual(response.err_msg, "")
         mock_publish_composed_stack.assert_called_once()
+        self.node.get_logger().info.assert_called_once_with(
+            "Composed stack published successfully."
+        )
 
     @patch("composer.plugins.compose_plugin.ComposePlugin")
     @patch.object(MutoDefaultComposePlugin, "publish_composed_stack")
@@ -70,6 +78,9 @@ class TestComposePlugin(unittest.TestCase):
         self.assertFalse(response.success)
         self.assertEqual(response.err_msg, "No incoming stack to compose.")
         mock_publish_composed_stack.assert_not_called()
+        self.node.get_logger().warn.assert_called_once_with(
+            "No incoming stack to compose."
+        )
 
     @patch("composer.plugins.compose_plugin.ComposePlugin")
     @patch.object(MutoDefaultComposePlugin, "publish_composed_stack")
@@ -85,6 +96,9 @@ class TestComposePlugin(unittest.TestCase):
         self.assertFalse(response.success)
         self.assertEqual(response.err_msg, "Start flag not set in request.")
         mock_publish_composed_stack.assert_not_called()
+        self.node.get_logger().warn.assert_called_once_with(
+            "Start flag not set in compose request."
+        )
 
     @patch.object(MutoDefaultComposePlugin, "publish_composed_stack", side_effect=Exception("dummy_exception"))
     @patch("composer.plugins.compose_plugin.ComposePlugin")
@@ -98,6 +112,10 @@ class TestComposePlugin(unittest.TestCase):
 
         self.assertFalse(response.success)
         self.assertIn("dummy_exception", response.err_msg)
+        self.node.get_logger().error.assert_called_once_with(
+            "Exception during compose: dummy_exception"
+        )
+        mock_publish.assert_called_once_with()
 
     @patch("composer.plugins.compose_plugin.StackManifest")
     def test_parse_stack(self, mock_stack_manifest):

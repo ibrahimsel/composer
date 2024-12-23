@@ -375,6 +375,11 @@ class TestMutoDefaultNativePlugin(unittest.TestCase):
         )
 
         self.assertFalse(result)
+        mock_run.assert_called_once_with(
+            ["git", "checkout", "test_branch"],
+            check=True,
+            cwd="/var/tmp/muto_workspaces/Test_Stack/submodule1",
+        )
 
     @patch("subprocess.check_output")
     @patch("subprocess.run")
@@ -389,3 +394,4 @@ class TestMutoDefaultNativePlugin(unittest.TestCase):
         )
 
         self.assertFalse(result)
+        mock_run.assert_not_called()

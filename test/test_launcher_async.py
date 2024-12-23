@@ -16,6 +16,7 @@ class TestLauncherAsync(unittest.IsolatedAsyncioTestCase):
     def tearDownClass(cls) -> None:
         rclpy.shutdown()
 
+    @patch("rclpy.logging")
     @patch("composer.workflow.launcher.OnProcessExit")
     @patch("composer.workflow.launcher.RegisterEventHandler")
     @patch.object(Ros2LaunchParent, "parse_launch_arguments")
@@ -26,6 +27,7 @@ class TestLauncherAsync(unittest.IsolatedAsyncioTestCase):
         mock_parse_launch_arguments,
         mock_register_event_handler,
         mock_on_process_exit,
+        mock_logger,
     ):
         mock_ls_instance = MagicMock()
         mock_ls_instance.run_async = AsyncMock()
@@ -52,6 +54,8 @@ class TestLauncherAsync(unittest.IsolatedAsyncioTestCase):
             mock_register_event_handler()
         )
         self.assertEqual(mock_launch.LaunchDescription().add_action.call_count, 2)
+        mock_logger.get_logger().info.assert_called_once()
+        mock_on_process_exit.assert_called_once()
 
 
 if __name__ == "__main__":

@@ -95,6 +95,7 @@ class TestLaunchPlugin(unittest.TestCase):
         self.node.get_logger().error.assert_called_once()
         error_call_args = self.node.get_logger().error.call_args[0][0]
         self.assertIn("Error parsing launch arguments:", error_call_args)
+        mock_stack_manifest.assert_not_called()
 
     @patch("os.walk")
     @patch("os.path")
@@ -109,6 +110,7 @@ class TestLaunchPlugin(unittest.TestCase):
         self.assertIsNotNone(returned_value)
         mock_walk.assert_called_once_with("/ws")
         self.assertEqual(self.node.get_logger().info.call_count, 2)
+        mock_path.assert_not_called()
 
     @patch("os.walk")
     @patch("os.path")
@@ -126,6 +128,7 @@ class TestLaunchPlugin(unittest.TestCase):
         self.node.get_logger().warning.assert_called_once_with(
             "File 'muto_composer' not found under '/ws'."
         )
+        mock_path.assert_not_called()
 
     @patch("subprocess.run")
     @patch("os.environ.update")
@@ -263,7 +266,7 @@ class TestLaunchPlugin(unittest.TestCase):
         self.node.launch_arguments = ["test:=test_args"]
 
         mock_find_file.return_value = None
-        returned_value = self.node.handle_start(request, response)
+        self.node.handle_start(request, response)
         self.assertRaises(FileNotFoundError)
         mock_source_workspace.assert_called_once_with()
         mock_find_file.assert_called()
@@ -272,25 +275,6 @@ class TestLaunchPlugin(unittest.TestCase):
         self.assertEqual(
             response.err_msg, "Launch file not found: mock_launch_description_source"
         )
-
-    # @patch("asyncio.run_coroutine_threadsafe")
-    # @patch.object(MutoDefaultLaunchPlugin, "find_file")
-    # @patch.object(MutoDefaultLaunchPlugin, "source_workspaces")
-    # @patch("composer.plugins.launch_plugin.LaunchPlugin")
-    # def test_handle_start_current_stack_on_start_error(self, mock_launch_plugin, mock_source_workspace, mock_find_file, mock_patch_asyncio):
-    #     response = mock_launch_plugin.response
-    #     response.success = None
-    #     response.err_msg = None
-    #     request = mock_launch_plugin.request
-    #     request.start = True
-
-    #     self.node.current_stack.launch_description_source = None
-    #     self.node.launch_arguments = ['test:=test_args']
-    #     self.node.current_stack.on_start = True
-
-    #     mock_find_file.return_value = None
-    #     # with self.assertRaises(FileNotFoundError):    ASSERT RAISES???
-    #     self.node.handle_start(request, response)
 
     @patch.object(MutoDefaultLaunchPlugin, "run_script")
     @patch.object(MutoDefaultLaunchPlugin, "find_file")
@@ -313,6 +297,7 @@ class TestLaunchPlugin(unittest.TestCase):
         mock_run_script.assert_called_once_with("found/path")
         self.assertTrue(response.success)
         self.assertEqual(response.err_msg, "")
+        mock_source_workspace.assert_called_once_with()
 
     @patch.object(MutoDefaultLaunchPlugin, "run_script")
     @patch.object(MutoDefaultLaunchPlugin, "find_file")
@@ -366,6 +351,7 @@ class TestLaunchPlugin(unittest.TestCase):
         mock_chmod.assert_not_called()
         mock_access.assert_not_called()
         mock_path.isfile.assert_called_once_with(script_path)
+        mock_run.assert_not_called()
 
     @patch("subprocess.run")
     @patch("os.path")
@@ -380,6 +366,9 @@ class TestLaunchPlugin(unittest.TestCase):
         mock_chmod.assert_called_once_with(script_path, 0o755)
         mock_access.assert_called_once_with(script_path, os.X_OK)
         mock_path.isfile.assert_called_once_with(script_path)
+        mock_run.assert_called_once_with(
+            ["/mock/script/path"], check=True, capture_output=True, text=True
+        )
 
     @patch("composer.plugins.launch_plugin.CoreTwin")
     @patch("composer.plugins.launch_plugin.LaunchPlugin")
@@ -400,6 +389,7 @@ class TestLaunchPlugin(unittest.TestCase):
         self.node.get_logger().error.assert_called_once_with(
             "Exception occurred during kill: "
         )
+        mock_core_twin.assert_not_called()
 
     @patch("composer.plugins.launch_plugin.CoreTwin")
     @patch("composer.plugins.launch_plugin.LaunchPlugin")
