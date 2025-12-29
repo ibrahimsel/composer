@@ -17,9 +17,8 @@ from .archive_handler import ArchiveStackHandler
 from .ditto_handler import DittoStackHandler
 
 __all__ = [
-
-    'StackTypeRegistry',
-    'JsonStackHandler',
-    'ArchiveStackHandler',
-    'DittoStackHandler',
+    "StackTypeRegistry",
+    "JsonStackHandler",
+    "ArchiveStackHandler",
+    "DittoStackHandler",
 ]

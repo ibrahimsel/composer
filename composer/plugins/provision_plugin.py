@@ -18,7 +18,6 @@ from muto_msgs.srv import ProvisionPlugin
 from .base_plugin import BasePlugin, StackOperation
 
 
-
 WORKSPACES_PATH = os.path.join("/tmp", "muto", "muto_workspaces")
 ARTIFACT_STATE_FILE = ".muto_artifact.json"
 
@@ -51,10 +50,9 @@ class MutoProvisionPlugin(BasePlugin):
             self.get_logger().error(f"Exception: {e}")
             response.err_msg = f"Error: {e}"
             response.success = False
-            
+
         response.output.current = request.input.current
         return response
-
 
 
 def main():

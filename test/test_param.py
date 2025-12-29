@@ -17,7 +17,6 @@ from unittest.mock import MagicMock, patch
 
 
 class TestParam(unittest.TestCase):
-
     @patch("composer.model.param.Param._resolve_value")
     def setUp(self, mock_resolve_value):
         self.mock_stack = MagicMock()

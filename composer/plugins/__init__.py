@@ -14,9 +14,8 @@
 from .base_plugin import StackTypeHandler, BasePlugin, StackContext, StackOperation
 
 __all__ = [
-
-    'StackTypeHandler',
-    'BasePlugin',
-    'StackContext',
-    'StackOperation',
+    "StackTypeHandler",
+    "BasePlugin",
+    "StackContext",
+    "StackOperation",
 ]

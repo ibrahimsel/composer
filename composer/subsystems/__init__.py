@@ -24,8 +24,8 @@ from .digital_twin_integration import DigitalTwinIntegration
 
 __all__ = [
     "MessageHandler",
-    "StackManager", 
+    "StackManager",
     "OrchestrationManager",
     "PipelineEngine",
-    "DigitalTwinIntegration"
+    "DigitalTwinIntegration",
 ]

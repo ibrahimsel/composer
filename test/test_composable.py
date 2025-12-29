@@ -17,7 +17,6 @@ from composer.model.composable import Container
 
 
 class TestComposable(unittest.TestCase):
-
     @patch("composer.model.composable.node")
     def test_toManifest(self, mock_node):
         self.node = Container(MagicMock(), None)

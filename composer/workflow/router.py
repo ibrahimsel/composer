@@ -14,6 +14,7 @@
 import rclpy.logging
 from composer.workflow.pipeline import Pipeline
 
+
 class Router:
     def __init__(self, pipelines):
         """

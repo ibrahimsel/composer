@@ -55,7 +55,6 @@ class TestPipeline(unittest.TestCase):
 
     @patch("importlib.import_module")
     def test_load_plugins_success(self, mock_import_module):
-
         mock_plugin_class = MagicMock()
         mock_import_module.return_value = MagicMock(
             ComposePlugin=mock_plugin_class,
@@ -74,7 +73,6 @@ class TestPipeline(unittest.TestCase):
         self.assertIn("LaunchPlugin", pipeline.plugins)
 
     def test_load_plugins_failure(self):
-
         steps_config = [
             {
                 "sequence": [
@@ -101,7 +99,6 @@ class TestPipeline(unittest.TestCase):
     def test_execute_pipeline_with_conditions_skipped_step(
         self, mock_create_node, mock_spin, mock_import_module
     ):
-
         mock_spin.return_value = None
 
         mock_plugin_class = MagicMock()
@@ -179,9 +176,7 @@ class TestPipeline(unittest.TestCase):
             elif service_name == "muto_kill_stack":
                 future_mock.result.return_value = MagicMock(success=True, err_msg="")
             else:
-                future_mock.result.return_value = MagicMock(
-                    success=True, err_msg="Unreached"
-                )
+                future_mock.result.return_value = MagicMock(success=True, err_msg="Unreached")
 
             client_mock.call_async.return_value = future_mock
             return client_mock

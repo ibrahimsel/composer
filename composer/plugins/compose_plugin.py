@@ -19,6 +19,7 @@ from std_msgs.msg import String
 from muto_msgs.msg import StackManifest
 from muto_msgs.srv import ComposePlugin
 
+
 class MutoDefaultComposePlugin(BasePlugin):
     def __init__(self):
         super().__init__("compose_plugin")
@@ -27,13 +28,8 @@ class MutoDefaultComposePlugin(BasePlugin):
         self.next_stack = None  # To store the next stack if needed
 
         self.create_subscription(String, "raw_stack", self.handle_raw_stack, 10)
-        self.composed_stack_publisher = self.create_publisher(
-            StackManifest, "composed_stack", 10
-        )
-        self.compose_srv = self.create_service(
-            ComposePlugin, "muto_compose", self.handle_compose
-        )
-
+        self.composed_stack_publisher = self.create_publisher(StackManifest, "composed_stack", 10)
+        self.compose_srv = self.create_service(ComposePlugin, "muto_compose", self.handle_compose)
 
     def handle_raw_stack(self, stack_msg: String):
         """
@@ -46,10 +42,7 @@ class MutoDefaultComposePlugin(BasePlugin):
         except json.JSONDecodeError as e:
             self.get_logger().error(f"Failed to parse raw stack JSON: {e}")
 
-
-    def handle_compose(
-        self, request: ComposePlugin.Request, response: ComposePlugin.Response
-    ):
+    def handle_compose(self, request: ComposePlugin.Request, response: ComposePlugin.Response):
         """
         Service handler for composing the stack.
         Publishes the composed stack if 'start' is True.
@@ -70,15 +63,13 @@ class MutoDefaultComposePlugin(BasePlugin):
             response.success = False
             response.err_msg = str(e)
             self.get_logger().error(f"Exception during compose: {e}")
-        
+
         ## Simply chain the input to putput for now..
         ## This plugin should be able to determine how
         ## the pipeline will continue to work i.e. apply policies
         ## and transformations to the stack.
         response.output.current = request.input.current
         return response
-
-
 
     def publish_composed_stack(self):
         """

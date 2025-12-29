@@ -30,6 +30,7 @@ ARTIFACT_STATE_FILE = ".muto_artifact.json"
 
 class StackOperation(Enum):
     """Enumeration of stack operations."""
+
     START = "start"
     KILL = "kill"
     APPLY = "apply"
@@ -40,6 +41,7 @@ class StackOperation(Enum):
 @dataclass
 class StackContext:
     """Context object passed during double dispatch."""
+
     stack_data: Dict[str, Any]
     metadata: Dict[str, Any]
     operation: StackOperation
@@ -51,12 +53,12 @@ class StackContext:
     hash: str = None
 
 
-
 class BasePlugin(Node):
     """Base class for stack plugins implementing the Plugin interface."""
-    
+
     def __init__(self, node_name: str):
         from composer.stack_handlers.registry import StackTypeRegistry
+
         Node.__init__(self, node_name)
         self._stack_definition_client = self.create_client(
             CoreTwin, "/muto/core_twin/get_stack_definition"
@@ -64,26 +66,24 @@ class BasePlugin(Node):
         self.stack_registry = StackTypeRegistry(self, self.get_logger())
         self.stack_registry.discover_and_register_handlers()
 
-       
     # Plugin interface implementation - single accept method
-   
+
     def _get_stack_name(self, stack_dict):
         """
         Get the stack name from a stack dictionary, checking metadata.name first, then name, then defaulting to 'default'.
-        
+
         Args:
             stack_dict (dict): The stack dictionary
-            
+
         Returns:
             str: The stack name
         """
         if not stack_dict or not isinstance(stack_dict, dict):
             return "default"
-            
+
         metadata = stack_dict.get("metadata", {})
         return metadata.get("name", stack_dict.get("name", "default"))
- 
-            
+
     def find_file(self, ws_path: str, file_name: str) -> Optional[str]:
         """
         Helper method to find a file in the workspace path.
@@ -111,14 +111,13 @@ class BasePlugin(Node):
         self.get_logger().warning(f"File '{file_name}' not found under '{ws_path}'.")
         return None
 
-       
     def find_stack_handler(self, request):
         """
         Get the stack handler for the current context.
         """
         if not request:
             return None, None
-        
+
         current_stack = self._safely_parse_stack(request.input.current.stack)
         # encode str and sha256 hash of the stack contents
         # Handle both real strings and test mocks
@@ -137,7 +136,7 @@ class BasePlugin(Node):
                         WORKSPACES_PATH,
                         stack_name.replace(" ", "_"),
                     )
-                    
+
                     # Create context for double dispatch
                     context = StackContext(
                         stack_data=current_stack,
@@ -146,13 +145,13 @@ class BasePlugin(Node):
                         name=current_stack.get("name", "default"),
                         logger=self.get_logger(),
                         workspace_path=workspace_path,
-                        hash=hash
+                        hash=hash,
                     )
                     return handler, context
         except Exception as e:
             self.get_logger().error(f"Error creating stack_handler: {e}")
-            return None,None
-        return None,None
+            return None, None
+        return None, None
 
     def _fetch_stack_manifest(self, stack_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -166,9 +165,7 @@ class BasePlugin(Node):
                 return None
 
             if not self._stack_definition_client.wait_for_service(timeout_sec=0.5):
-                self.get_logger().warning(
-                    "CoreTwin get_stack_definition service is not available."
-                )
+                self.get_logger().warning("CoreTwin get_stack_definition service is not available.")
                 return None
 
             request = CoreTwin.Request()
@@ -239,16 +236,16 @@ class BasePlugin(Node):
     def _safely_parse_stack(self, stack_string):
         """
         Safely parse a stack string to JSON. Returns dictionary if valid JSON, None otherwise.
-        
+
         Args:
             stack_string (str): The stack string to parse
-            
+
         Returns:
             dict or None: Parsed JSON dictionary or None if parsing fails
         """
         if not stack_string:
             return None
-            
+
         try:
             if isinstance(stack_string, dict):
                 parsed = stack_string
@@ -256,9 +253,7 @@ class BasePlugin(Node):
                 parsed = json.loads(stack_string)
 
             if not isinstance(parsed, dict):
-                self.get_logger().warning(
-                    f"Stack string parsed to non-dict type: {type(parsed)}"
-                )
+                self.get_logger().warning(f"Stack string parsed to non-dict type: {type(parsed)}")
                 return None
 
             if self._is_manifest_payload(parsed):
@@ -280,27 +275,25 @@ class BasePlugin(Node):
                 return manifest
 
             # Fallback to parsed data if manifest retrieval fails
-            self.get_logger().warning(
-                f"Falling back to stack reference for stackId '{stack_id}'."
-            )
+            self.get_logger().warning(f"Falling back to stack reference for stackId '{stack_id}'.")
             return parsed
 
         except (json.JSONDecodeError, TypeError) as e:
             self.get_logger().warning(f"Failed to parse stack string as JSON: {e}")
             return None
-        
+
 
 class StackTypeHandler(ABC):
     """
     Abstract base class for stack type handlers.
     Simplified with double dispatch pattern.
     """
-    
+
     @abstractmethod
     def can_handle(self, payload: Dict[str, Any]) -> bool:
         """Determine if this handler can process the given payload."""
         pass
-    
+
     @abstractmethod
     def apply_to_plugin(self, plugin: BasePlugin, context: StackContext, request, response) -> any:
         """
@@ -308,4 +301,3 @@ class StackTypeHandler(ABC):
         The handler processes the type-specific logic for STACK operations.
         """
         pass
-    

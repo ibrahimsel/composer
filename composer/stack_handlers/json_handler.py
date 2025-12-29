@@ -19,13 +19,12 @@ from composer.workflow.launcher import Ros2LaunchParent
 
 class JsonStackHandler(StackTypeHandler):
     """Handler for stack/json type stacks."""
-    
+
     def __init__(self, logger=None):
         self.logger = logger
         self.is_up_to_date = False
         self.managed_launchers = {}
 
-    
     def can_handle(self, payload: Dict[str, Any]) -> bool:
         """Check for stack/json content_type in properly defined solution."""
         if not isinstance(payload, dict):
@@ -33,10 +32,10 @@ class JsonStackHandler(StackTypeHandler):
         metadata = payload.get("metadata", {})
         content_type = metadata.get("content_type", "")
         return content_type == "stack/json"
-    
+
     def apply_to_plugin(self, plugin: BasePlugin, context: StackContext, request, response) -> bool:
         """Double dispatch: delegate to plugin's accept method."""
-        
+
         if context.operation == StackOperation.PROVISION:
             return self._provision_json(context, plugin)
         elif context.operation == StackOperation.START:
@@ -62,13 +61,12 @@ class JsonStackHandler(StackTypeHandler):
             return False
 
     def _start_json(self, context: StackContext, plugin: BasePlugin) -> bool:
-            
         # JSON stacks support launch operations
         # For stack/json, the launch data is inside the manifest
-        
+
         self._kill_json(context, plugin)
 
-        launcher = Ros2LaunchParent([])        
+        launcher = Ros2LaunchParent([])
         launch_data = context.stack_data.get("launch")
         if not launch_data:
             self.logger.error("No 'launch' section found in stack/json manifest")
@@ -77,16 +75,15 @@ class JsonStackHandler(StackTypeHandler):
         stack.launch(launcher)
         self.managed_launchers[context.hash] = launcher
         return True
-    
+
     def _kill_json(self, context: StackContext, plugin: BasePlugin) -> bool:
-            
         # JSON stacks support launch operations
         # For stack/json, the launch data is inside the manifest
-        #launch_data = context.stack_data.get("launch")
-        #if not launch_data:
+        # launch_data = context.stack_data.get("launch")
+        # if not launch_data:
         #    self.logger.error("No 'launch' section found in stack/json manifest")
         #    return False
-        #stack = Stack(manifest=launch_data)
+        # stack = Stack(manifest=launch_data)
         launcher = self.managed_launchers.get(context.hash, None)
         if launcher:
             launcher.kill()
@@ -94,7 +91,6 @@ class JsonStackHandler(StackTypeHandler):
         return True
 
     def _apply_json(self, context: StackContext, plugin: BasePlugin) -> bool:
-
         # JSON stacks support launch operations
         # For stack/json, the launch data is inside the manifest
         self._kill_json(context, plugin)
@@ -108,4 +104,3 @@ class JsonStackHandler(StackTypeHandler):
         stack.apply(launcher)
         self.managed_launchers[context.hash] = launcher
         return True
-

@@ -23,7 +23,6 @@ from composer.plugins.provision_plugin import WORKSPACES_PATH, MutoProvisionPlug
 
 
 class TestMutoProvisionPlugin(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         rclpy.init()
@@ -39,18 +38,9 @@ class TestMutoProvisionPlugin(unittest.TestCase):
 
     def _create_stack_json(self, content_type="stack/json", name="Test Stack", **kwargs):
         """Helper to create proper stack JSON for tests."""
-        stack = {
-            "metadata": {
-                "name": name,
-                "content_type": content_type
-            }
-        }
+        stack = {"metadata": {"name": name, "content_type": content_type}}
         stack.update(kwargs)
         return json.dumps(stack)
 
-
     def tearDown(self):
         self.node.destroy_node()
-
-
-

@@ -18,7 +18,6 @@ from composer.model.stack import Stack
 
 
 class TestStack(unittest.TestCase):
-
     def setUp(self):
         self.sample_manifest = {
             "name": "test_stack",
@@ -195,9 +194,7 @@ class TestStack(unittest.TestCase):
 
     def test_merge_attributes(self):
         stack1 = Stack(manifest=self.sample_manifest)
-        stack2 = Stack(
-            manifest={"name": "new_name", "context": "new_context", "stackId": "new_id"}
-        )
+        stack2 = Stack(manifest={"name": "new_name", "context": "new_context", "stackId": "new_id"})
         merged = Stack(manifest={})
 
         stack1._merge_attributes(merged, stack2)
@@ -277,9 +274,7 @@ class TestStack(unittest.TestCase):
         self.assertEqual(len(active_nodes), 2)
         self.assertIn(("/ns", "node1"), active_nodes)
         self.assertIn(("/", "node2"), active_nodes)
-        mock_rclpy.create_node.assert_called_once_with(
-            "get_active_nodes", enable_rosout=False
-        )
+        mock_rclpy.create_node.assert_called_once_with("get_active_nodes", enable_rosout=False)
         mock_node.destroy_node.assert_called_once()
 
     @patch("composer.model.stack.Introspector")
@@ -309,17 +304,13 @@ class TestStack(unittest.TestCase):
     @patch("composer.model.stack.subprocess.run")
     def test_change_params_at_runtime(self, mock_run):
         param_differences = {
-            ("node1", "node2"): [
-                {"key": "param1", "in_node1": "value1", "in_node2": "value2"}
-            ]
+            ("node1", "node2"): [{"key": "param1", "in_node1": "value1", "in_node2": "value2"}]
         }
 
         stack = Stack(manifest=self.sample_manifest)
         stack.change_params_at_runtime(param_differences)
 
-        mock_run.assert_called_once_with(
-            ["ros2", "param", "set", "node1", "param1", "value1"]
-        )
+        mock_run.assert_called_once_with(["ros2", "param", "set", "node1", "param1", "value1"])
 
     def test_toShallowManifest(self):
         stack = Stack(manifest=self.sample_manifest)
@@ -367,9 +358,11 @@ class TestStack(unittest.TestCase):
         stack = Stack(manifest=self.sample_manifest)
         mock_launcher = MagicMock()
 
-        with patch("composer.model.stack.ComposableNodeContainer"), patch(
-            "composer.model.stack.ComposableNode"
-        ), patch("composer.model.stack.Node"):
+        with (
+            patch("composer.model.stack.ComposableNodeContainer"),
+            patch("composer.model.stack.ComposableNode"),
+            patch("composer.model.stack.Node"),
+        ):
             stack.launch(mock_launcher)
 
         mock_launcher.start.assert_called_once()
@@ -380,9 +373,10 @@ class TestStack(unittest.TestCase):
         stack = Stack(manifest=self.sample_manifest)
         mock_launcher = MagicMock()
 
-        with patch.object(Stack, "kill_diff") as mock_kill_diff, patch.object(
-            Stack, "launch"
-        ) as mock_launch:
+        with (
+            patch.object(Stack, "kill_diff") as mock_kill_diff,
+            patch.object(Stack, "launch") as mock_launch,
+        ):
             stack.apply(mock_launcher)
 
         mock_kill_diff.assert_called_once_with(mock_launcher, stack)

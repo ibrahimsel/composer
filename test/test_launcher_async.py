@@ -63,9 +63,7 @@ class TestLauncherAsync(unittest.IsolatedAsyncioTestCase):
         mock_launch.LaunchDescription.assert_called_once_with(
             [mock_launch.actions.IncludeLaunchDescription()]
         )
-        mock_launch.LaunchDescription().add_action.assert_called_with(
-            mock_register_event_handler()
-        )
+        mock_launch.LaunchDescription().add_action.assert_called_with(mock_register_event_handler())
         self.assertEqual(mock_launch.LaunchDescription().add_action.call_count, 2)
         mock_logger.get_logger().info.assert_called_once()
         mock_on_process_exit.assert_called_once()
