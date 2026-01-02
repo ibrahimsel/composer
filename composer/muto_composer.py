@@ -47,10 +47,10 @@ class MutoComposer(Node):
         # Initialize configuration parameters
         self.declare_parameter("namespace", "org.eclipse.muto.sandbox")
         self.declare_parameter("name", "example-01")
+        self.declare_parameter("stack_topic", "stack")
 
         self.twin_namespace = self.get_parameter("namespace").get_parameter_value().string_value
         self.name = self.get_parameter("name").get_parameter_value().string_value
-        self.next_stack_topic = self.get_parameter("stack_topic").get_parameter_value().string_value
 
         # Initialize event bus for subsystem communication
         self.event_bus = EventBus()
@@ -61,8 +61,6 @@ class MutoComposer(Node):
 
         # Subscribe to relevant events for coordination
         self._subscribe_to_events()
-
-        self.get_logger().info("Muto Composer initialized.")
 
     def _initialize_subsystems(self):
         """Initialize all subsystems in correct dependency order."""
@@ -103,8 +101,6 @@ class MutoComposer(Node):
         Delegates to subsystems via event publishing.
         """
         try:
-            self.get_logger().info(f"Received MutoAction: {stack_msg.method}")
-
             # Parse payload
             payload = json.loads(stack_msg.payload)
 
@@ -122,8 +118,6 @@ class MutoComposer(Node):
 
             # Publish to event bus for subsystem processing
             self.event_bus.publish_sync(stack_request)
-
-            self.get_logger().info(f"Stack request published for processing: {stack_name}")
 
         except json.JSONDecodeError as e:
             self.get_logger().error(f"Invalid JSON in payload: {e}")
@@ -160,8 +154,6 @@ class MutoComposer(Node):
     def _handle_pipeline_completed(self, event):
         """Handle pipeline completion for high-level coordination."""
         try:
-            self.get_logger().info(f"Pipeline completed: {event.pipeline_name}")
-
             # Log completion details instead of publishing deprecated state
             if hasattr(event, "final_result") and event.final_result:
                 self.get_logger().info(f"Pipeline result keys: {list(event.final_result.keys())}")

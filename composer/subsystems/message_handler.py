@@ -184,8 +184,6 @@ class MessageHandler:
         # Subscribe to MutoAction messages
         self.node.create_subscription(MutoAction, stack_topic, self._muto_action_callback, 10)
 
-        self.logger.info(f"Subscribed to {stack_topic} for MutoAction messages")
-
     def _muto_action_callback(self, msg: MutoAction):
         """Callback for MutoAction messages."""
         try:

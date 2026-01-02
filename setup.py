@@ -27,7 +27,14 @@ setup(
         (os.path.join("share", PACKAGE_NAME, "config"), glob("config/*.yaml")),
         (os.path.join("share", PACKAGE_NAME, "launch"), glob("launch/*.launch.py")),
     ],
-    install_requires=["docker", "setuptools", "jsonschema"],
+    install_requires=[
+        "docker",
+        "setuptools",
+        "jsonschema",
+        "fastapi",
+        "uvicorn",
+        "httpx",
+    ],
     zip_safe=True,
     maintainer="composiv.ai",
     maintainer_email="info@composiv.ai",
@@ -42,6 +49,7 @@ setup(
             "provision_plugin = composer.plugins.provision_plugin:main",
             "launch_plugin = composer.plugins.launch_plugin:main",
             "daemon = composer.introspection.muto_daemon:main",
+            "muto_api = api.main:main",
         ],
     },
 )
