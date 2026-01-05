@@ -62,10 +62,10 @@ class Stack:
 
         self.stack = []
         referenced_stacks = self.manifest.get("stack", [])
-        # for stackRef in referenced_stacks:
-        # stackDef = self.edge_device.stack(stackRef['thingId'])  # TODO: Replace with the twin service call
-        # stack = Stack(stackDef, self)
-        # self.stack.append(stack)
+        for stackRef in referenced_stacks:
+            stackDef = self.edge_device.stack(stackRef['thingId'])
+            stack = Stack(stackDef, self)
+            self.stack.append(stack)
 
         self.node = []
         for nDef in self.manifest.get("node", []):
