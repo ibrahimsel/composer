@@ -36,9 +36,7 @@ class TestComposerApi(unittest.TestCase):
         self.client = TestClient(app)
 
     def test_list_vehicles_pagination(self):
-        response = self.client.get(
-            "/api/v1/vehicles", params={"page": 1, "limit": 5}
-        )
+        response = self.client.get("/api/v1/vehicles", params={"page": 1, "limit": 5})
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertIn("data", payload)
@@ -53,15 +51,11 @@ class TestComposerApi(unittest.TestCase):
             "comment": "test",
         }
         headers = {"Idempotency-Key": "dsr-test-1"}
-        response = self.client.post(
-            "/api/v1/desired-states", json=payload, headers=headers
-        )
+        response = self.client.post("/api/v1/desired-states", json=payload, headers=headers)
         self.assertEqual(response.status_code, 200)
         first_id = response.json()["data"]["id"]
 
-        response = self.client.post(
-            "/api/v1/desired-states", json=payload, headers=headers
-        )
+        response = self.client.post("/api/v1/desired-states", json=payload, headers=headers)
         self.assertEqual(response.status_code, 200)
         second_id = response.json()["data"]["id"]
 
@@ -98,16 +92,12 @@ class TestComposerApi(unittest.TestCase):
             "status": "converged",
             "reasonCodes": [],
         }
-        report_response = self.client.post(
-            "/api/v1/reports/reconcile", json=report_payload
-        )
+        report_response = self.client.post("/api/v1/reports/reconcile", json=report_payload)
         self.assertEqual(report_response.status_code, 200)
 
         vehicle_response = self.client.get(f"/api/v1/vehicles/{vehicle_id}")
         self.assertEqual(vehicle_response.status_code, 200)
-        self.assertEqual(
-            vehicle_response.json()["data"]["status"], "converged"
-        )
+        self.assertEqual(vehicle_response.json()["data"]["status"], "converged")
 
 
 if __name__ == "__main__":

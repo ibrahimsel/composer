@@ -151,9 +151,7 @@ class InMemoryStore:
     ) -> Dict[str, Any]:
         with self._lock:
             if idempotency_key:
-                existing_id = self._idempotency["vehicles"].get(
-                    idempotency_key
-                )
+                existing_id = self._idempotency["vehicles"].get(idempotency_key)
                 if existing_id:
                     return deepcopy(self._vehicles[existing_id])
 
@@ -169,9 +167,7 @@ class InMemoryStore:
 
             return deepcopy(vehicle)
 
-    def update_vehicle(
-        self, vehicle_id: str, updates: VehicleUpdateRequest
-    ) -> Dict[str, Any]:
+    def update_vehicle(self, vehicle_id: str, updates: VehicleUpdateRequest) -> Dict[str, Any]:
         with self._lock:
             vehicle = self._vehicles.get(vehicle_id)
             if not vehicle:
@@ -193,13 +189,9 @@ class InMemoryStore:
             vehicle["status"] = status_update.status.value
             vehicle["reasonCodes"] = status_update.reasonCodes
             vehicle["safetySnapshot"] = (
-                model_dump(status_update.safetySnapshot)
-                if status_update.safetySnapshot
-                else None
+                model_dump(status_update.safetySnapshot) if status_update.safetySnapshot else None
             )
-            vehicle["lastSeenAt"] = (
-                status_update.lastSeenAt or now()
-            ).isoformat()
+            vehicle["lastSeenAt"] = (status_update.lastSeenAt or now()).isoformat()
             self._vehicles[vehicle_id] = vehicle
             return deepcopy(vehicle)
 
@@ -239,25 +231,17 @@ class InMemoryStore:
             self._vehicles[vehicle_id] = vehicle
             return deepcopy(vehicle)
 
-    def list_releases(
-        self, stack: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    def list_releases(self, stack: Optional[str] = None) -> List[Dict[str, Any]]:
         with self._lock:
             releases = list(self._releases.values())
 
         if stack:
-            releases = [
-                release
-                for release in releases
-                if release["stack"] == stack
-            ]
+            releases = [release for release in releases if release["stack"] == stack]
 
         releases.sort(key=lambda item: (item["stack"], item["version"]))
         return [deepcopy(item) for item in releases]
 
-    def get_release(
-        self, stack: str, version: str
-    ) -> Optional[Dict[str, Any]]:
+    def get_release(self, stack: str, version: str) -> Optional[Dict[str, Any]]:
         key = self._release_key(stack, version)
         with self._lock:
             release = self._releases.get(key)
@@ -268,9 +252,7 @@ class InMemoryStore:
     ) -> Dict[str, Any]:
         with self._lock:
             if idempotency_key:
-                existing_id = self._idempotency["releases"].get(
-                    idempotency_key
-                )
+                existing_id = self._idempotency["releases"].get(idempotency_key)
                 if existing_id:
                     return deepcopy(self._releases[existing_id])
 
@@ -292,18 +274,12 @@ class InMemoryStore:
 
             return deepcopy(release_payload)
 
-    def list_rollouts(
-        self, status: Optional[RolloutStatus] = None
-    ) -> List[Dict[str, Any]]:
+    def list_rollouts(self, status: Optional[RolloutStatus] = None) -> List[Dict[str, Any]]:
         with self._lock:
             rollouts = list(self._rollouts.values())
 
         if status:
-            rollouts = [
-                rollout
-                for rollout in rollouts
-                if rollout["status"] == status.value
-            ]
+            rollouts = [rollout for rollout in rollouts if rollout["status"] == status.value]
 
         rollouts.sort(key=lambda item: item["createdAt"], reverse=True)
         return [deepcopy(item) for item in rollouts]
@@ -318,15 +294,11 @@ class InMemoryStore:
     ) -> Dict[str, Any]:
         with self._lock:
             if idempotency_key:
-                existing_id = self._idempotency["rollouts"].get(
-                    idempotency_key
-                )
+                existing_id = self._idempotency["rollouts"].get(idempotency_key)
                 if existing_id:
                     return deepcopy(self._rollouts[existing_id])
 
-            targets = self._resolve_targets(
-                payload.selector, payload.vehicleList
-            )
+            targets = self._resolve_targets(payload.selector, payload.vehicleList)
             rollout = Rollout(
                 id=self._generate_id("rol"),
                 stackVersion=payload.stackVersion,
@@ -350,9 +322,7 @@ class InMemoryStore:
             self._rollouts[rollout_payload["id"]] = rollout_payload
             self._rollout_targets[rollout_payload["id"]] = targets
             if idempotency_key:
-                self._idempotency["rollouts"][idempotency_key] = (
-                    rollout_payload["id"]
-                )
+                self._idempotency["rollouts"][idempotency_key] = rollout_payload["id"]
 
             self._apply_desired_state_targets(
                 rollout_id=rollout_payload["id"],
@@ -404,9 +374,7 @@ class InMemoryStore:
     ) -> Dict[str, Any]:
         with self._lock:
             if idempotency_key:
-                existing_id = self._idempotency["desired_states"].get(
-                    idempotency_key
-                )
+                existing_id = self._idempotency["desired_states"].get(idempotency_key)
                 if existing_id:
                     return deepcopy(self._desired_states[existing_id])
 
@@ -423,13 +391,9 @@ class InMemoryStore:
             )
             desired_state_payload = model_dump(desired_state)
 
-            self._desired_states[
-                desired_state_payload["id"]
-            ] = desired_state_payload
+            self._desired_states[desired_state_payload["id"]] = desired_state_payload
             if idempotency_key:
-                self._idempotency["desired_states"][idempotency_key] = (
-                    desired_state_payload["id"]
-                )
+                self._idempotency["desired_states"][idempotency_key] = desired_state_payload["id"]
 
             self._apply_desired_state_targets(
                 rollout_id=None,
@@ -453,9 +417,7 @@ class InMemoryStore:
             desired_state = self._desired_states.get(revision)
             return deepcopy(desired_state) if desired_state else None
 
-    def get_latest_desired_state(
-        self, vehicle_id: str
-    ) -> Optional[Dict[str, Any]]:
+    def get_latest_desired_state(self, vehicle_id: str) -> Optional[Dict[str, Any]]:
         with self._lock:
             revision = self._desired_by_vehicle.get(vehicle_id)
             if not revision:
@@ -463,9 +425,7 @@ class InMemoryStore:
             desired_state = self._desired_states.get(revision)
             return deepcopy(desired_state) if desired_state else None
 
-    def get_reconcile_report(
-        self, vehicle_id: str
-    ) -> Optional[Dict[str, Any]]:
+    def get_reconcile_report(self, vehicle_id: str) -> Optional[Dict[str, Any]]:
         with self._lock:
             report = self._reconcile_reports.get(vehicle_id)
             return deepcopy(report) if report else None
@@ -489,9 +449,7 @@ class InMemoryStore:
                 vehicle["reasonCodes"] = report.reasonCodes
                 vehicle["lastSeenAt"] = payload["lastSeenAt"]
                 vehicle["safetySnapshot"] = (
-                    model_dump(report.safetySnapshot)
-                    if report.safetySnapshot
-                    else None
+                    model_dump(report.safetySnapshot) if report.safetySnapshot else None
                 )
                 vehicle["latestReport"] = payload
                 self._vehicles[report.vehicleId] = vehicle
@@ -508,9 +466,7 @@ class InMemoryStore:
             if vehicle:
                 vehicle["lastSeenAt"] = payload["lastSeenAt"]
                 vehicle["safetySnapshot"] = (
-                    model_dump(report.safetySnapshot)
-                    if report.safetySnapshot
-                    else None
+                    model_dump(report.safetySnapshot) if report.safetySnapshot else None
                 )
                 self._vehicles[report.vehicleId] = vehicle
 
@@ -583,11 +539,7 @@ class InMemoryStore:
         self, selector: Optional[str], vehicle_list: Optional[List[str]]
     ) -> List[str]:
         if vehicle_list:
-            return [
-                vehicle_id
-                for vehicle_id in vehicle_list
-                if vehicle_id in self._vehicles
-            ]
+            return [vehicle_id for vehicle_id in vehicle_list if vehicle_id in self._vehicles]
 
         if not selector:
             return []

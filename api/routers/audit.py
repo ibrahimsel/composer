@@ -35,10 +35,6 @@ async def list_audit_log(
 ) -> dict:
     entries = store.list_audit_log(actor=actor, action=action)
     if correlation_id:
-        entries = [
-            entry
-            for entry in entries
-            if entry.get("correlationId") == correlation_id
-        ]
+        entries = [entry for entry in entries if entry.get("correlationId") == correlation_id]
     paged, metadata = paginate(entries, page, limit)
     return envelope(paged, metadata)

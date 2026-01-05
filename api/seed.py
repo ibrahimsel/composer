@@ -124,9 +124,7 @@ def build_seed_data(vehicle_count: int) -> Dict[str, Any]:
 
         safety_snapshot = SafetySnapshot(
             moving=status == VehicleStatus.BLOCKED,
-            autonomyMode=(
-                "auto" if status == VehicleStatus.BLOCKED else "manual"
-            ),
+            autonomyMode=("auto" if status == VehicleStatus.BLOCKED else "manual"),
             battery=rng.randint(20, 95),
             window=True,
         )
@@ -184,9 +182,7 @@ def build_seed_data(vehicle_count: int) -> Dict[str, Any]:
             )
         )
 
-    rollout_targets = [
-        vehicle["id"] for vehicle in vehicles[: max(1, vehicle_count // 3)]
-    ]
+    rollout_targets = [vehicle["id"] for vehicle in vehicles[: max(1, vehicle_count // 3)]]
     rollout = Rollout(
         id=_generate_id("rol"),
         stackVersion="autonomy-core:1.1.0",

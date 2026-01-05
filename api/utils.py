@@ -33,9 +33,7 @@ def now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def envelope(
-    data: Any, metadata: Dict[str, Any] | None = None
-) -> Dict[str, Any]:
+def envelope(data: Any, metadata: Dict[str, Any] | None = None) -> Dict[str, Any]:
     """Wrap response payloads in the standard API envelope."""
     payload: Dict[str, Any] = {"data": data, "timestamp": now().isoformat()}
     if metadata is not None:
@@ -43,9 +41,7 @@ def envelope(
     return payload
 
 
-def build_error(
-    code: str, message: str, details: Dict[str, Any] | None = None
-) -> Dict[str, Any]:
+def build_error(code: str, message: str, details: Dict[str, Any] | None = None) -> Dict[str, Any]:
     """Build an error response payload."""
     error: Dict[str, Any] = {"code": code, "message": message}
     if details:
@@ -60,9 +56,7 @@ def model_dump(model: Any, **kwargs: Any) -> Dict[str, Any]:
     return model.dict(**kwargs)
 
 
-def paginate(
-    items: List[Any], page: int, limit: int
-) -> Tuple[List[Any], Dict[str, int]]:
+def paginate(items: List[Any], page: int, limit: int) -> Tuple[List[Any], Dict[str, int]]:
     """Paginate a list of items using 1-based page indexing."""
     total_items = len(items)
     if total_items == 0:
@@ -93,9 +87,7 @@ def parse_selector(selector: str) -> List[SelectorTerm]:
     return terms
 
 
-def selector_matches(
-    tags: Dict[str, str], terms: Iterable[SelectorTerm]
-) -> bool:
+def selector_matches(tags: Dict[str, str], terms: Iterable[SelectorTerm]) -> bool:
     """Return True if all selector terms match the vehicle tags."""
     for term in terms:
         if tags.get(term.key) != term.value:

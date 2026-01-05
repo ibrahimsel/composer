@@ -38,9 +38,7 @@ from api.utils import build_error, envelope
 API_PREFIX = "/api/v1"
 
 
-def create_app(
-    seed_data: Optional[bool] = None, seed_count: Optional[int] = None
-) -> FastAPI:
+def create_app(seed_data: Optional[bool] = None, seed_count: Optional[int] = None) -> FastAPI:
     """Create and configure the FastAPI app."""
     settings = Settings()
     if seed_data is None:
@@ -72,9 +70,7 @@ def create_app(
     app.include_router(audit.router, prefix=API_PREFIX)
 
     @app.exception_handler(HTTPException)
-    async def http_exception_handler(
-        _request: Request, exc: HTTPException
-    ) -> JSONResponse:
+    async def http_exception_handler(_request: Request, exc: HTTPException) -> JSONResponse:
         detail = exc.detail
         if isinstance(detail, dict) and "error" in detail:
             payload = detail

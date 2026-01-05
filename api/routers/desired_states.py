@@ -29,9 +29,7 @@ router = APIRouter(prefix="/desired-states", tags=["DesiredStates"])
 async def create_desired_state(
     payload: DesiredStateRequest,
     store: InMemoryStore = Depends(get_store),
-    idempotency_key: str | None = Header(
-        default=None, alias="Idempotency-Key"
-    ),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> dict:
     if not payload.selector and not payload.vehicleList:
         raise HTTPException(
@@ -46,9 +44,7 @@ async def create_desired_state(
 
 
 @router.get("/{revision}")
-async def get_desired_state(
-    revision: str, store: InMemoryStore = Depends(get_store)
-) -> dict:
+async def get_desired_state(revision: str, store: InMemoryStore = Depends(get_store)) -> dict:
     desired_state = store.get_desired_state(revision)
     if not desired_state:
         raise HTTPException(

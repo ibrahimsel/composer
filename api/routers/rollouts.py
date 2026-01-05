@@ -41,9 +41,7 @@ async def list_rollouts(
 async def create_rollout(
     payload: DeploymentConfig,
     store: InMemoryStore = Depends(get_store),
-    idempotency_key: str | None = Header(
-        default=None, alias="Idempotency-Key"
-    ),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> dict:
     if not payload.selector and not payload.vehicleList:
         raise HTTPException(
@@ -58,9 +56,7 @@ async def create_rollout(
 
 
 @router.get("/{rollout_id}")
-async def get_rollout(
-    rollout_id: str, store: InMemoryStore = Depends(get_store)
-) -> dict:
+async def get_rollout(rollout_id: str, store: InMemoryStore = Depends(get_store)) -> dict:
     rollout = store.get_rollout(rollout_id)
     if not rollout:
         raise HTTPException(
@@ -71,9 +67,7 @@ async def get_rollout(
 
 
 @router.post("/{rollout_id}/pause")
-async def pause_rollout(
-    rollout_id: str, store: InMemoryStore = Depends(get_store)
-) -> dict:
+async def pause_rollout(rollout_id: str, store: InMemoryStore = Depends(get_store)) -> dict:
     try:
         rollout = store.pause_rollout(rollout_id)
     except KeyError as exc:
@@ -85,9 +79,7 @@ async def pause_rollout(
 
 
 @router.post("/{rollout_id}/rollback")
-async def rollback_rollout(
-    rollout_id: str, store: InMemoryStore = Depends(get_store)
-) -> dict:
+async def rollback_rollout(rollout_id: str, store: InMemoryStore = Depends(get_store)) -> dict:
     try:
         rollout = store.rollback_rollout(rollout_id)
     except KeyError as exc:

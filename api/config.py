@@ -35,10 +35,6 @@ class Settings:
     default_page_size: int = int(os.getenv("MUTO_API_PAGE_SIZE", "20"))
     max_page_size: int = int(os.getenv("MUTO_API_MAX_PAGE_SIZE", "200"))
     cors_origins: List[str] = field(
-        default_factory=lambda: _parse_csv(
-            os.getenv("MUTO_API_CORS_ORIGINS", "*")
-        )
+        default_factory=lambda: _parse_csv(os.getenv("MUTO_API_CORS_ORIGINS", "*"))
     )
-    cors_allow_credentials: bool = (
-        os.getenv("MUTO_API_CORS_CREDENTIALS", "false").lower() == "true"
-    )
+    cors_allow_credentials: bool = os.getenv("MUTO_API_CORS_CREDENTIALS", "false").lower() == "true"

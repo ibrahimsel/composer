@@ -54,9 +54,7 @@ async def list_vehicles(
 
 
 @router.get("/{vehicle_id}")
-async def get_vehicle(
-    vehicle_id: str, store: InMemoryStore = Depends(get_store)
-) -> dict:
+async def get_vehicle(vehicle_id: str, store: InMemoryStore = Depends(get_store)) -> dict:
     vehicle = store.get_vehicle(vehicle_id)
     if not vehicle:
         raise HTTPException(
@@ -70,9 +68,7 @@ async def get_vehicle(
 async def create_vehicle(
     payload: VehicleCreateRequest,
     store: InMemoryStore = Depends(get_store),
-    idempotency_key: str | None = Header(
-        default=None, alias="Idempotency-Key"
-    ),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> dict:
     try:
         vehicle = store.create_vehicle(model_dump(payload), idempotency_key)

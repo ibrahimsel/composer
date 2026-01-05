@@ -56,9 +56,7 @@ async def get_release(
 async def create_release(
     payload: ReleaseRequest,
     store: InMemoryStore = Depends(get_store),
-    idempotency_key: str | None = Header(
-        default=None, alias="Idempotency-Key"
-    ),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> dict:
     release = store.create_release(payload, idempotency_key)
     return envelope(release)
