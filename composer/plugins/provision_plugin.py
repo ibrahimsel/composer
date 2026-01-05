@@ -14,6 +14,7 @@
 import os
 
 import rclpy
+from rclpy.executors import MultiThreadedExecutor
 from muto_msgs.srv import ProvisionPlugin
 from .base_plugin import BasePlugin, StackOperation
 
@@ -58,10 +59,15 @@ class MutoProvisionPlugin(BasePlugin):
 def main():
     rclpy.init()
     provision_plugin = MutoProvisionPlugin()
-    rclpy.spin(provision_plugin)
-    provision_plugin.destroy_node()
-    if rclpy.ok():
-        rclpy.shutdown()
+    executor = MultiThreadedExecutor()
+    executor.add_node(provision_plugin)
+    try:
+        executor.spin()
+    finally:
+        executor.shutdown()
+        provision_plugin.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":

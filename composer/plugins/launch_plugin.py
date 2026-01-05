@@ -20,6 +20,7 @@ import signal
 import atexit
 from typing import Optional, Set, Dict
 import rclpy
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.callback_groups import ReentrantCallbackGroup
 from muto_msgs.msg import StackManifest
 from muto_msgs.srv import LaunchPlugin, CoreTwin
@@ -378,10 +379,15 @@ class MutoDefaultLaunchPlugin(BasePlugin):
 def main():
     rclpy.init()
     launch_plugin = MutoDefaultLaunchPlugin()
-    rclpy.spin(launch_plugin)
-    launch_plugin.destroy_node()
-    if rclpy.ok():
-        rclpy.shutdown()
+    executor = MultiThreadedExecutor()
+    executor.add_node(launch_plugin)
+    try:
+        executor.spin()
+    finally:
+        executor.shutdown()
+        launch_plugin.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":

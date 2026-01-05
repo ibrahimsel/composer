@@ -15,6 +15,7 @@ import json
 from .base_plugin import BasePlugin, StackOperation
 
 import rclpy
+from rclpy.executors import MultiThreadedExecutor
 from std_msgs.msg import String
 from muto_msgs.msg import StackManifest
 from muto_msgs.srv import ComposePlugin
@@ -106,7 +107,12 @@ class MutoDefaultComposePlugin(BasePlugin):
 def main():
     rclpy.init()
     compose_plugin = MutoDefaultComposePlugin()
-    rclpy.spin(compose_plugin)
-    compose_plugin.destroy_node()
-    if rclpy.ok():
-        rclpy.shutdown()
+    executor = MultiThreadedExecutor()
+    executor.add_node(compose_plugin)
+    try:
+        executor.spin()
+    finally:
+        executor.shutdown()
+        compose_plugin.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
