@@ -70,6 +70,16 @@ class ExecutionPathDeterminer:
                 analyzed_event.stack_payload
             )  # Use direct field instead of nested lookup
 
+            if action == "kill":
+                return ExecutionPath(
+                    pipeline_name=action,
+                    context_variables={
+                        "should_run_provision": False,
+                        "should_run_launch": True,
+                    },
+                    requires_merging=False,
+                )
+
             # Complex logic extracted from original determine_execution_path method
             is_next_stack_empty = not stack_payload.get("node", "") and not stack_payload.get(
                 "composable", ""
@@ -177,7 +187,7 @@ class DeploymentOrchestrator:
                 source_component="deployment_orchestrator",
                 correlation_id=event.correlation_id,
                 orchestration_id=orchestration_id,
-                action=event.metadata.get("action", "unknown"),
+                action=event.action,
                 execution_plan=execution_path.to_dict(),
                 context_variables=execution_path.context_variables,
                 stack_payload=event.stack_payload,  # Pass stack_payload directly from analyzed event
@@ -186,7 +196,7 @@ class DeploymentOrchestrator:
 
             if self.logger:
                 self.logger.info(
-                    f"Starting orchestration {orchestration_id} for {event.metadata.get('action')}"
+                    f"Starting orchestration {orchestration_id} for {event.action}"
                 )
 
             self.event_bus.publish_sync(orchestration_event)
