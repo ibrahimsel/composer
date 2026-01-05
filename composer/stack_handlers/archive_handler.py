@@ -53,6 +53,8 @@ class ArchiveStackHandler(StackTypeHandler):
 
         if context.operation == StackOperation.PROVISION:
             return self._provision_archive(context, plugin)
+        elif context.operation == StackOperation.COMPOSE:
+            return True
         elif context.operation == StackOperation.START:
             plugin.source_workspaces(request.input.current)
             return self._start_archive(context, plugin)
