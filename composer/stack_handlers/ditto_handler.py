@@ -54,6 +54,8 @@ class DittoStackHandler(StackTypeHandler):
         try:
             if context.operation == StackOperation.PROVISION:
                 return True
+            elif context.operation == StackOperation.COMPOSE:
+                return True
             elif context.operation == StackOperation.START:
                 return self._start_ditto(context)
             elif context.operation == StackOperation.KILL:
