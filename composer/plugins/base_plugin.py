@@ -22,6 +22,7 @@ from threading import Event
 
 import rclpy
 from rclpy.node import Node
+from rclpy.callback_groups import ReentrantCallbackGroup
 from muto_msgs.srv import CoreTwin
 
 WORKSPACES_PATH = os.path.join("/tmp", "muto", "muto_workspaces")
@@ -60,8 +61,9 @@ class BasePlugin(Node):
         from composer.stack_handlers.registry import StackTypeRegistry
 
         Node.__init__(self, node_name)
+        self._client_cb_group = ReentrantCallbackGroup()
         self._stack_definition_client = self.create_client(
-            CoreTwin, "/muto/core_twin/get_stack_definition"
+            CoreTwin, "/muto/core_twin/get_stack_definition", callback_group=self._client_cb_group
         )
         self.stack_registry = StackTypeRegistry(self, self.get_logger())
         self.stack_registry.discover_and_register_handlers()
@@ -231,7 +233,29 @@ class BasePlugin(Node):
 
         # Stack references usually only contain id/state. Anything else is treated as a manifest.
         reference_keys = {"stackId", "state"}
-        return not set(stack_dict.keys()).issubset(reference_keys)
+        if set(stack_dict.keys()).issubset(reference_keys):
+            return False
+
+        # Handle MutoAction envelopes that wrap stackId under a value field.
+        if "value" in stack_dict and isinstance(stack_dict["value"], dict):
+            value = stack_dict["value"]
+            if "stackId" in value:
+                manifest_markers = {
+                    "metadata",
+                    "node",
+                    "composable",
+                    "launch",
+                    "launch_description_source",
+                    "on_start",
+                    "on_kill",
+                    "artifact",
+                    "archive_properties",
+                    "stack",
+                }
+                if not manifest_markers.intersection(value.keys()):
+                    return False
+
+        return True
 
     def _safely_parse_stack(self, stack_string):
         """
