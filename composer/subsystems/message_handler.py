@@ -47,7 +47,7 @@ class MessageRouter:
             )
 
             if self.logger:
-                self.logger.info(f"Routing {action.method} action via event system")
+                self.logger.info(f"Routing {action.method} action of stack: {stack_name}")
 
             self.event_bus.publish_sync(event)
 
@@ -174,8 +174,6 @@ class MessageHandler:
         # Set up subscribers
         self._setup_subscribers()
 
-        self.logger.info("MessageHandler subsystem initialized")
-
     def _setup_subscribers(self):
         """Set up ROS 2 subscribers."""
         # Get stack topic from parameters
@@ -198,10 +196,6 @@ class MessageHandler:
         """Publish stack state through publisher manager."""
         self.publisher_manager.publish_stack_state(stack_data, state_type)
 
-    def get_service_manager(self) -> ServiceClientManager:
-        """Get service client manager for external use."""
-        return self.service_manager
-
     def handle_muto_action(self, muto_action: MutoAction):
         """Handle MutoAction message."""
         self.router.route_muto_action(muto_action)
@@ -215,5 +209,5 @@ class MessageHandler:
         return self.publisher_manager
 
     def get_service_client_manager(self) -> ServiceClientManager:
-        """Get service client manager (alias for compatibility)."""
+        """Get service client manager for external use."""
         return self.service_manager
