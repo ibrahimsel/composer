@@ -13,9 +13,14 @@
 
 import os
 import composer.model.param as param
-from lifecycle_msgs.msg import Transition, State
-from lifecycle_msgs.srv import GetState, GetAvailableTransitions, GetAvailableStates, ChangeState
-import rclpy
+from lifecycle_msgs.msg import Transition, State  # type: ignore[import-not-found]
+from lifecycle_msgs.srv import (  # type: ignore[import-not-found]
+    GetState,
+    GetAvailableTransitions,
+    GetAvailableStates,
+    ChangeState,
+)
+import rclpy  # type: ignore[import-not-found]
 
 
 class Node:

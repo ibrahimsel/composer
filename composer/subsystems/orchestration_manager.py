@@ -65,7 +65,7 @@ class ExecutionPathDeterminer:
             # Extract information from analyzed event
             analysis_result = analyzed_event.analysis_result
             stack_type = analysis_result.get("stack_type", StackType.UNKNOWN.value)
-            action = analyzed_event.action
+            action = analyzed_event.action or "unknown"
             stack_payload = (
                 analyzed_event.stack_payload
             )  # Use direct field instead of nested lookup
@@ -144,7 +144,7 @@ class ExecutionPathDeterminer:
 
             # Fallback path
             return ExecutionPath(
-                pipeline_name=analyzed_event.action,
+                pipeline_name=action,
                 context_variables={"should_run_provision": False, "should_run_launch": False},
                 requires_merging=False,
             )
@@ -172,6 +172,7 @@ class DeploymentOrchestrator:
         """Handle analyzed stack by determining orchestration path."""
         try:
             execution_path = self.path_determiner.determine_path(event)
+            action = event.action or "unknown"
 
             orchestration_id = str(uuid.uuid4())
 
@@ -187,7 +188,7 @@ class DeploymentOrchestrator:
                 source_component="deployment_orchestrator",
                 correlation_id=event.correlation_id,
                 orchestration_id=orchestration_id,
-                action=event.action,
+                action=action,
                 execution_plan=execution_path.to_dict(),
                 context_variables=execution_path.context_variables,
                 stack_payload=event.stack_payload,  # Pass stack_payload directly from analyzed event
@@ -195,9 +196,7 @@ class DeploymentOrchestrator:
             )
 
             if self.logger:
-                self.logger.info(
-                    f"Starting orchestration {orchestration_id} for {event.action}"
-                )
+                self.logger.info(f"Starting orchestration {orchestration_id} for {action}")
 
             self.event_bus.publish_sync(orchestration_event)
 

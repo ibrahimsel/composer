@@ -117,15 +117,23 @@ class DittoStackHandler(StackTypeHandler):
 
             # Otherwise, try to use Stack model
             if context.stack_data.get("node") or context.stack_data.get("composable"):
+                if not context.launcher:
+                    if self.logger:
+                        self.logger.warning("No launcher available to kill Ditto stack.")
+                    return False
                 stack = Stack(manifest=context.stack_data)
-                stack.kill()
+                stack.kill_all(context.launcher)
                 return True
 
             # Check if there's a launch structure
             launch_data = context.stack_data.get("launch")
             if launch_data:
+                if not context.launcher:
+                    if self.logger:
+                        self.logger.warning("No launcher available to kill Ditto launch stack.")
+                    return False
                 stack = Stack(manifest=launch_data)
-                stack.kill()
+                stack.kill_all(context.launcher)
                 return True
 
             if self.logger:

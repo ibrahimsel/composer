@@ -11,7 +11,7 @@
 #   Composiv.ai - initial API and implementation
 #
 
-import rclpy.logging
+import rclpy.logging  # type: ignore[import-not-found]
 from composer.workflow.pipeline import Pipeline
 
 

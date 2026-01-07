@@ -368,7 +368,7 @@ class StackProcessedEvent(BaseComposeEvent):
 
     def __init__(
         self,
-        event_type: EventType = None,
+        event_type: Optional[EventType] = None,
         source_component: str = "stack_processor",
         stack_name: str = "",
         action: str = "",
@@ -398,7 +398,7 @@ class TwinUpdateEvent(BaseComposeEvent):
 
     def __init__(
         self,
-        event_type: EventType = None,
+        event_type: Optional[EventType] = None,
         source_component: str = "twin_integration",
         twin_id: str = "",
         update_type: str = "",
@@ -512,6 +512,15 @@ class EventBus:
         except Exception as e:
             if self._logger:
                 self._logger.error(f"Error publishing event {event.event_type.value}: {e}")
+
+    def publish_async(self, event: BaseComposeEvent) -> None:
+        """Fire-and-forget publish helper for synchronous callers."""
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            asyncio.run(self.publish(event))
+            return
+        loop.create_task(self.publish(event))
 
     def publish_sync(self, event: BaseComposeEvent):
         """Synchronous event publishing for ROS callbacks."""

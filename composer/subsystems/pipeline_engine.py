@@ -17,11 +17,13 @@ Manages pipeline configurations and execution.
 """
 
 import os
-import yaml
+import yaml  # type: ignore[import-untyped]
 import uuid
 from typing import Dict, Any, Optional
-from ament_index_python.packages import get_package_share_directory
-from jsonschema import validate, ValidationError
+from ament_index_python.packages import (  # type: ignore[import-not-found]
+    get_package_share_directory,
+)
+from jsonschema import validate, ValidationError  # type: ignore[import-untyped]
 from composer.workflow.pipeline import Pipeline
 from composer.workflow.schemas.pipeline_schema import PIPELINE_SCHEMA
 from composer.events import (
@@ -159,7 +161,11 @@ class PipelineExecutor:
     def handle_orchestration_started(self, event: OrchestrationStartedEvent):
         """Handle orchestration start by executing appropriate pipeline."""
         try:
-            pipeline_name = event.execution_plan.get("pipeline_name", event.action)
+            pipeline_name = event.execution_plan.get("pipeline_name") or event.action
+            if not pipeline_name:
+                if self.logger:
+                    self.logger.error("No pipeline_name available for orchestration start.")
+                return
             context = event.context_variables
 
             # Check if stack merging is required first
@@ -196,13 +202,14 @@ class PipelineExecutor:
         execution_id = str(uuid.uuid4())
 
         try:
-            pipeline = self.pipeline_manager.get_pipeline(event.pipeline_name)
+            pipeline_name = event.pipeline_name or "unknown"
+            pipeline = self.pipeline_manager.get_pipeline(pipeline_name)
             if not pipeline:
                 self._publish_pipeline_failed(
                     event,
                     execution_id,
                     "pipeline_lookup",
-                    f"No pipeline found: {event.pipeline_name}",
+                    f"No pipeline found: {pipeline_name}",
                 )
                 return
 
@@ -219,7 +226,7 @@ class PipelineExecutor:
                     event_type=EventType.PIPELINE_STARTED,
                     source_component="pipeline_executor",
                     correlation_id=event.correlation_id,
-                    pipeline_name=event.pipeline_name,
+                    pipeline_name=pipeline_name,
                     execution_id=execution_id,
                     steps_planned=self._extract_step_names(pipeline),
                 )
@@ -227,7 +234,7 @@ class PipelineExecutor:
 
             if self.logger:
                 self.logger.info(
-                    f"Starting pipeline execution: {event.pipeline_name} [{execution_id}]"
+                    f"Starting pipeline execution: {pipeline_name} [{execution_id}]"
                 )
 
             # Execute pipeline
@@ -241,7 +248,7 @@ class PipelineExecutor:
                         event_type=EventType.PIPELINE_COMPLETED,
                         source_component="pipeline_executor",
                         correlation_id=event.correlation_id,
-                        pipeline_name=event.pipeline_name,
+                        pipeline_name=pipeline_name,
                         execution_id=execution_id,
                         final_result=result,
                         steps_executed=self._extract_step_names(pipeline),
@@ -251,7 +258,7 @@ class PipelineExecutor:
 
                 if self.logger:
                     self.logger.info(
-                        f"Pipeline execution completed: {event.pipeline_name} [{execution_id}]"
+                        f"Pipeline execution completed: {pipeline_name} [{execution_id}]"
                     )
             else:
                 # Pipeline failed, publish failure event
@@ -331,12 +338,13 @@ class PipelineExecutor:
         error_message: str,
     ):
         """Publish pipeline failure event."""
+        pipeline_name = event.pipeline_name or "unknown"
         self.event_bus.publish_sync(
             PipelineFailedEvent(
                 event_type=EventType.PIPELINE_FAILED,
                 source_component="pipeline_executor",
                 correlation_id=event.correlation_id,
-                pipeline_name=event.pipeline_name,
+                pipeline_name=pipeline_name,
                 execution_id=execution_id,
                 failure_step=failure_step,
                 error_details={"error": error_message},
@@ -346,7 +354,7 @@ class PipelineExecutor:
 
         if self.logger:
             self.logger.error(
-                f"Pipeline execution failed: {event.pipeline_name} [{execution_id}] - {error_message}"
+                f"Pipeline execution failed: {pipeline_name} [{execution_id}] - {error_message}"
             )
 
 

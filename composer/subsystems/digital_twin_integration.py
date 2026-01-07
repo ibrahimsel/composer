@@ -25,10 +25,10 @@ from composer.events import (
     StackRequestEvent,
     OrchestrationStartedEvent,
 )
-import rclpy
-from rclpy.node import Node
-from rclpy.callback_groups import ReentrantCallbackGroup
-from muto_msgs.srv import CoreTwin
+import rclpy  # type: ignore[import-not-found]
+from rclpy.node import Node  # type: ignore[import-not-found]
+from rclpy.callback_groups import ReentrantCallbackGroup  # type: ignore[import-not-found]
+from muto_msgs.srv import CoreTwin  # type: ignore[import-not-found]
 
 
 class TwinServiceClient:
@@ -72,15 +72,20 @@ class TwinServiceClient:
     def _handle_compose_request(self, event: StackRequestEvent):
         """Handle compose request by getting manifests."""
         try:
+            stack_name = event.stack_name or ""
+            if not stack_name:
+                if self.logger:
+                    self.logger.error("Compose request missing stack_name.")
+                return
             # Get real stack manifest first
-            real_manifest = self.get_real_stack_manifest(event.stack_name)
+            real_manifest = self.get_real_stack_manifest(stack_name)
 
             # Get desired stack manifest
-            desired_manifest = self.get_desired_stack_manifest(event.stack_name)
+            desired_manifest = self.get_desired_stack_manifest(stack_name)
 
             # If no desired manifest exists and we have a stack payload, create it
             if not desired_manifest and event.stack_payload:
-                self.create_desired_stack_manifest(event.stack_name, event.stack_payload)
+                self.create_desired_stack_manifest(stack_name, event.stack_payload)
                 desired_manifest = event.stack_payload
 
             # Publish stack analyzed event
@@ -88,8 +93,8 @@ class TwinServiceClient:
                 event_type=EventType.STACK_ANALYZED,
                 source_component="twin_service_client",
                 correlation_id=event.correlation_id,
-                stack_name=event.stack_name,
-                action=event.action,
+                stack_name=stack_name,
+                action=event.action or "unknown",
                 analysis_result={
                     "stack_type": "compose",
                     "requires_merging": bool(real_manifest),
@@ -112,7 +117,7 @@ class TwinServiceClient:
             self.event_bus.publish_sync(analyzed_event)
 
             if self.logger:
-                self.logger.info(f"Processed compose request for stack: {event.stack_name}")
+                self.logger.info(f"Processed compose request for stack: {stack_name}")
 
         except Exception as e:
             if self.logger:
@@ -122,11 +127,17 @@ class TwinServiceClient:
         """Handle decompose request by getting current manifest."""
         try:
             # Get current stack manifest
-            current_manifest = self.get_desired_stack_manifest(event.stack_name)
+            stack_name = event.stack_name or ""
+            if not stack_name:
+                if self.logger:
+                    self.logger.error("Decompose request missing stack_name.")
+                return
+
+            current_manifest = self.get_desired_stack_manifest(stack_name)
 
             if not current_manifest:
                 if self.logger:
-                    self.logger.warning(f"No manifest found for decompose: {event.stack_name}")
+                    self.logger.warning(f"No manifest found for decompose: {stack_name}")
                 return
 
             # Publish stack analyzed event
@@ -134,8 +145,8 @@ class TwinServiceClient:
                 event_type=EventType.STACK_ANALYZED,
                 source_component="twin_service_client",
                 correlation_id=event.correlation_id,
-                stack_name=event.stack_name,
-                action=event.action,
+                stack_name=stack_name,
+                action=event.action or "unknown",
                 analysis_result={
                     "stack_type": "decompose",
                     "requires_merging": False,
@@ -154,7 +165,7 @@ class TwinServiceClient:
             self.event_bus.publish_sync(analyzed_event)
 
             if self.logger:
-                self.logger.info(f"Processed decompose request for stack: {event.stack_name}")
+                self.logger.info(f"Processed decompose request for stack: {stack_name}")
 
         except Exception as e:
             if self.logger:
@@ -262,23 +273,24 @@ class TwinSynchronizer:
     def handle_orchestration_started(self, event: OrchestrationStartedEvent):
         """Handle orchestration start by ensuring twin synchronization."""
         try:
-            correlation_id = event.correlation_id
+            correlation_id = event.correlation_id or str(uuid.uuid4())
+            action = event.action or "unknown"
             stack_name = event.execution_plan.get("stack_name", "unknown")
 
             # Track synchronization for this orchestration
             self.sync_state[correlation_id] = {
                 "stack_name": stack_name,
-                "action": event.action,
+                "action": action,
                 "status": "syncing",
                 "timestamp": event.timestamp,
             }
 
             # Perform synchronization based on action
-            if event.action in ["compose", "decompose"]:
+            if action in ["compose", "decompose"]:
                 self._sync_for_stack_action(event)
             else:
                 if self.logger:
-                    self.logger.warning(f"No synchronization logic for action: {event.action}")
+                    self.logger.warning(f"No synchronization logic for action: {action}")
 
         except Exception as e:
             if self.logger:
@@ -310,8 +322,9 @@ class TwinSynchronizer:
                         self.logger.warning(f"No manifest to decompose for: {stack_name}")
 
             # Update sync state
-            if event.correlation_id in self.sync_state:
-                self.sync_state[event.correlation_id]["status"] = "synchronized"
+            correlation_id = event.correlation_id
+            if correlation_id and correlation_id in self.sync_state:
+                self.sync_state[correlation_id]["status"] = "synchronized"
 
             if self.logger:
                 self.logger.debug(f"Twin synchronization completed for: {stack_name}")
@@ -321,9 +334,10 @@ class TwinSynchronizer:
                 self.logger.error(f"Error synchronizing twin state: {e}")
 
             # Update sync state with error
-            if event.correlation_id in self.sync_state:
-                self.sync_state[event.correlation_id]["status"] = "error"
-                self.sync_state[event.correlation_id]["error"] = str(e)
+            correlation_id = event.correlation_id
+            if correlation_id and correlation_id in self.sync_state:
+                self.sync_state[correlation_id]["status"] = "error"
+                self.sync_state[correlation_id]["error"] = str(e)
 
     def get_sync_status(self, correlation_id: str) -> Optional[Dict[str, Any]]:
         """Get synchronization status for a correlation ID."""

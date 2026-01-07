@@ -13,7 +13,7 @@
 
 from typing import Dict, List, Optional
 
-from rclpy.node import Node
+from rclpy.node import Node  # type: ignore[import-not-found]
 from composer.plugins.base_plugin import StackTypeHandler
 
 

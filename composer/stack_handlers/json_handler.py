@@ -83,8 +83,8 @@ class JsonStackHandler(StackTypeHandler):
         # For stack/json, the launch data is inside the manifest
         launch_data = context.stack_data.get("launch")
         if not launch_data:
-           self.logger.error("No 'launch' section found in stack/json manifest")
-           return False
+            self.logger.error("No 'launch' section found in stack/json manifest")
+            return False
         stack = Stack(manifest=launch_data)
         launcher = self.managed_launchers.get(context.hash, None)
         if launcher:

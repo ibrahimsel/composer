@@ -19,10 +19,10 @@ Coordinates subsystems to handle stack deployment orchestration.
 import os
 import json
 from typing import Optional, Dict, Any
-import rclpy
-from rclpy.node import Node
-from std_msgs.msg import String
-from muto_msgs.msg import MutoAction
+import rclpy  # type: ignore[import-not-found]
+from rclpy.node import Node  # type: ignore[import-not-found]
+from std_msgs.msg import String  # type: ignore[import-not-found]
+from muto_msgs.msg import MutoAction  # type: ignore[import-not-found]
 from composer.events import EventBus, EventType, StackRequestEvent
 from composer.subsystems.message_handler import MessageHandler
 from composer.subsystems.stack_manager import StackManager

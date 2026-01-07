@@ -18,10 +18,10 @@ Manages all ROS 2 communication including topics, services, and publishers.
 
 import json
 from typing import Dict, Any, Optional
-from rclpy.node import Node
-from std_msgs.msg import String
-from muto_msgs.msg import MutoAction
-from muto_msgs.srv import CoreTwin
+from rclpy.node import Node  # type: ignore[import-not-found]
+from std_msgs.msg import String  # type: ignore[import-not-found]
+from muto_msgs.msg import MutoAction  # type: ignore[import-not-found]
+from muto_msgs.srv import CoreTwin  # type: ignore[import-not-found]
 from composer.events import EventBus, StackRequestEvent, EventType
 
 

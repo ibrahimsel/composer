@@ -19,11 +19,11 @@ import threading
 import signal
 import atexit
 from typing import Optional, Set, Dict
-import rclpy
-from rclpy.executors import MultiThreadedExecutor
-from rclpy.callback_groups import ReentrantCallbackGroup
-from muto_msgs.msg import StackManifest
-from muto_msgs.srv import LaunchPlugin, CoreTwin
+import rclpy  # type: ignore[import-not-found]
+from rclpy.executors import MultiThreadedExecutor  # type: ignore[import-not-found]
+from rclpy.callback_groups import ReentrantCallbackGroup  # type: ignore[import-not-found]
+from muto_msgs.msg import StackManifest  # type: ignore[import-not-found]
+from muto_msgs.srv import LaunchPlugin, CoreTwin  # type: ignore[import-not-found]
 from composer.workflow.launcher import Ros2LaunchParent
 from composer.plugins.provision_plugin import WORKSPACES_PATH
 from composer.utils.stack_parser import StackParser
@@ -251,41 +251,44 @@ class MutoDefaultLaunchPlugin(BasePlugin):
         response.output.current = request.input.current
         return response
 
-    def _launch_via_ros2(self, context: StackContext, launch_file: str) -> None:
+    def _launch_via_ros2(self, context: StackContext, launch_file: str) -> bool:
         """Launch the given launch file in a subprocess using ros2 launch."""
         self._terminate_launch_process(launch_file)
 
+        if not context.workspace_path:
+            self.get_logger().error("No workspace_path available for launch.")
+            return False
+
         full_launch_file = self.find_file(context.workspace_path, launch_file)
 
-        if not os.path.exists(full_launch_file):
-            if self.logger:
-                self.logger.error(f"Launch file not found: {full_launch_file}")
+        if not full_launch_file or not os.path.exists(full_launch_file):
+            self.get_logger().error(f"Launch file not found: {full_launch_file}")
             return False
 
         # Create a shell script to source the environment if needed
         # and launch with the additional launch arguments
-        launchCommand = ["ros2", "launch", full_launch_file]
+        launch_command = ["ros2", "launch", full_launch_file]
         # if self.launch_arguments:
         #    launchCommand.extend(self.launch_arguments)
 
-        workingDir = os.path.dirname(os.path.dirname(full_launch_file))
-        script_path = os.path.join(workingDir, "launch_script.sh")
-        script_content = f'#!/bin/bash\nsource {workingDir}/install/setup.bash\nexec "$@"'
+        working_dir = os.path.dirname(os.path.dirname(full_launch_file))
+        script_path = os.path.join(working_dir, "launch_script.sh")
+        script_content = f'#!/bin/bash\nsource {working_dir}/install/setup.bash\nexec "$@"'
         with open(script_path, "w") as script_file:
             script_file.write(script_content)
         os.chmod(script_path, 0o755)
 
         # Use the shell script to launch with proper environment sourcing
-        command = [script_path] + launchCommand
+        command = [script_path] + launch_command
 
         env = os.environ.copy()
         self.get_logger().info(f"Launch PATH: {env.get('PATH', '')}")
-        self.get_logger().info(f"Starting launch process in {workingDir}: {' '.join(command)}")
+        self.get_logger().info(f"Starting launch process in {working_dir}: {' '.join(command)}")
         try:
             launch_process = subprocess.Popen(
                 command,
                 env=env,
-                cwd=workingDir or None,
+                cwd=working_dir or None,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -307,8 +310,10 @@ class MutoDefaultLaunchPlugin(BasePlugin):
                 ).start()
             threading.Thread(
                 target=self._monitor_process,
+                args=(launch_file, launch_process),
                 daemon=True,
             ).start()
+            return True
         except FileNotFoundError:
             raise FileNotFoundError("ros2 command not found in PATH while launching stack")
         except Exception as exc:
@@ -347,33 +352,14 @@ class MutoDefaultLaunchPlugin(BasePlugin):
                 self.get_logger().info(f"launch {label}: {text}")
         stream.close()
 
-    def _monitor_process(self) -> None:
-        if not self.launch_process:
-            return
-        process = self.launch_process
+    def _monitor_process(self, launch_file: str, process: subprocess.Popen) -> None:
         returncode = process.wait()
-        self._managed_processes.discard(process)
-        if process is self.launch_process:
-            self.launch_process = None
+        self._managed_processes.pop(launch_file, None)
         self.get_logger().info(f"Launch process exited with return code {returncode}")
 
     def _cleanup_managed_processes(self) -> None:
-        for process in list(self._managed_processes):
-            if process.poll() is None:
-                try:
-                    pgid = os.getpgid(process.pid)
-                    os.killpg(pgid, signal.SIGTERM)
-                except ProcessLookupError:
-                    pass
-                try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    try:
-                        pgid = os.getpgid(process.pid)
-                        os.killpg(pgid, signal.SIGKILL)
-                    except ProcessLookupError:
-                        pass
-        self._managed_processes.clear()
+        for launch_file in list(self._managed_processes.keys()):
+            self._terminate_launch_process(launch_file)
 
 
 def main():

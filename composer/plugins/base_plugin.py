@@ -16,14 +16,14 @@ import json
 import os
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from threading import Event
 
-import rclpy
-from rclpy.node import Node
-from rclpy.callback_groups import ReentrantCallbackGroup
-from muto_msgs.srv import CoreTwin
+import rclpy  # type: ignore[import-not-found]
+from rclpy.node import Node  # type: ignore[import-not-found]
+from rclpy.callback_groups import ReentrantCallbackGroup  # type: ignore[import-not-found]
+from muto_msgs.srv import CoreTwin  # type: ignore[import-not-found]
 
 WORKSPACES_PATH = os.path.join("/tmp", "muto", "muto_workspaces")
 ARTIFACT_STATE_FILE = ".muto_artifact.json"
@@ -51,7 +51,13 @@ class StackContext:
     # Additional context data can be added here
     workspace_path: Optional[str] = None
     launcher: Optional[Any] = None
-    hash: str = None
+    hash: Optional[str] = None
+
+
+@dataclass
+class _ManifestResult:
+    manifest: Optional[Dict[str, Any]] = None
+    event: Event = field(default_factory=Event)
 
 
 class BasePlugin(Node):
@@ -174,21 +180,21 @@ class BasePlugin(Node):
             request.input = stack_id
 
             future = self._stack_definition_client.call_async(request)
-            result_holder = {"manifest": None, "event": Event()}
+            result_holder = _ManifestResult()
 
             def _cb(fut):
                 self._handle_twin_response(fut, result_holder, stack_id)
 
             future.add_done_callback(_cb)
 
-            completed = result_holder["event"].wait(timeout=5.0)
+            completed = result_holder.event.wait(timeout=5.0)
             if not completed:
                 self.get_logger().warning(
                     f"Timeout reached while waiting for stack manifest: {stack_id}"
                 )
                 return None
 
-            return result_holder["manifest"]
+            return result_holder.manifest
 
         except Exception as exc:
             self.get_logger().error(
@@ -197,7 +203,7 @@ class BasePlugin(Node):
 
         return None
 
-    def _handle_twin_response(self, future: rclpy.Future, holder: Dict[str, Any], stack_id: str):
+    def _handle_twin_response(self, future: rclpy.Future, holder: _ManifestResult, stack_id: str):
         """
         Callback to process CoreTwin responses without blocking execution.
         """
@@ -207,22 +213,22 @@ class BasePlugin(Node):
                 self.get_logger().warning(
                     f"CoreTwin returned an empty manifest for stackId '{stack_id}'."
                 )
-                holder["manifest"] = None
+                holder.manifest = None
             else:
                 try:
-                    holder["manifest"] = json.loads(result.output)
+                    holder.manifest = json.loads(result.output)
                 except json.JSONDecodeError as json_err:
                     self.get_logger().error(
                         f"Failed to decode manifest for stackId '{stack_id}': {json_err}"
                     )
-                    holder["manifest"] = None
+                    holder.manifest = None
         except Exception as exc:
             self.get_logger().error(
                 f"Error processing manifest response for stackId '{stack_id}': {exc}"
             )
-            holder["manifest"] = None
+            holder.manifest = None
         finally:
-            holder["event"].set()
+            holder.event.set()
 
     def _is_manifest_payload(self, stack_dict: Dict[str, Any]) -> bool:
         """
@@ -319,7 +325,7 @@ class StackTypeHandler(ABC):
         pass
 
     @abstractmethod
-    def apply_to_plugin(self, plugin: BasePlugin, context: StackContext, request, response) -> any:
+    def apply_to_plugin(self, plugin: BasePlugin, context: StackContext, request, response) -> Any:
         """
         Apply this stack type to a plugin using double dispatch.
         The handler processes the type-specific logic for STACK operations.

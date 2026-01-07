@@ -15,7 +15,7 @@ import os
 import base64
 import binascii
 import json
-import requests
+import requests  # type: ignore[import-untyped]
 import shutil
 import subprocess
 import tarfile
@@ -39,6 +39,7 @@ class ArchiveStackHandler(StackTypeHandler):
         self.is_up_to_date = False
         self.logger = logger
         self.ignored_packages = ignored_packages if ignored_packages is not None else []
+        self.current_stack: Optional[Dict[str, Any]] = None
 
     def can_handle(self, payload: Dict[str, Any]) -> bool:
         """Check for stack/archive content_type in properly defined solution."""
@@ -50,6 +51,7 @@ class ArchiveStackHandler(StackTypeHandler):
 
     def apply_to_plugin(self, plugin: BasePlugin, context: StackContext, request, response) -> bool:
         """Double dispatch: delegate to plugin's accept method."""
+        self.current_stack = context.stack_data
 
         if context.operation == StackOperation.PROVISION:
             return self._provision_archive(context, plugin)

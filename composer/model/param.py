@@ -13,7 +13,7 @@
 
 import subprocess
 import shlex
-import yaml
+import yaml  # type: ignore[import-untyped]
 import re
 
 

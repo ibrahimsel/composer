@@ -22,7 +22,9 @@ import json
 from typing import Dict, Any, Optional
 from enum import Enum
 from dataclasses import dataclass
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import (  # type: ignore[import-not-found]
+    get_package_share_directory,
+)
 from composer.model.stack import Stack
 from composer.utils.stack_parser import create_stack_parser
 from composer.events import (
@@ -207,14 +209,16 @@ class StackAnalyzer:
         """Handle stack request by analyzing the payload."""
         try:
             stack_payload = event.stack_payload or {}
+            stack_name = event.stack_name or "unknown"
+            action = event.action or "unknown"
             stack_type = self.analyze_stack_type(stack_payload)
             requirements = self.determine_execution_requirements(stack_payload)
 
             analyzed_event = StackAnalyzedEvent(
                 event_type=EventType.STACK_ANALYZED,
                 source_component="stack_analyzer",
-                stack_name=event.stack_name,
-                action=event.action,
+                stack_name=stack_name,
+                action=action,
                 analysis_result={
                     "stack_type": stack_type.value,
                     "content_type": stack_payload.get("metadata", {}).get("content_type"),
@@ -262,12 +266,14 @@ class StackProcessor:
             stack_payload = event.manifest_data.get("stack_payload", {})
             processed_payload = stack_payload
             processing_applied = False
+            stack_name = event.stack_name or "unknown"
+            action = event.action or "unknown"
 
             # Check if merging is required
             if processing_requirements.get("merge_manifests", False):
                 # For now, we'll simulate merging with current stack
                 # In a full implementation, this would get current stack from state manager
-                current_stack = {}  # Would be retrieved from state manager
+                current_stack: Dict[str, Any] = {}  # Would be retrieved from state manager
                 processed_payload = self.merge_stacks(current_stack, processed_payload)
                 processing_applied = True
 
@@ -289,8 +295,8 @@ class StackProcessor:
                     event_type=EventType.STACK_PROCESSED,
                     source_component="stack_processor",
                     correlation_id=event.correlation_id,
-                    stack_name=event.stack_name,
-                    action=event.action,
+                    stack_name=stack_name,
+                    action=action,
                     stack_payload=processed_payload,
                     original_payload=stack_payload,
                     processing_applied=list(processing_requirements.keys()),

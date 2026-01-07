@@ -17,13 +17,13 @@ import re
 import composer.model.node as node
 import composer.model.param as param
 import composer.model.composable as composable
-import rclpy
+import rclpy  # type: ignore[import-not-found]
 from composer.introspection.introspector import Introspector
-from launch import LaunchDescription
-from launch_ros.actions import Node, LoadComposableNodes
-from launch_ros.actions import ComposableNodeContainer
-from launch_ros.descriptions import ComposableNode
-from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription  # type: ignore[import-untyped]
+from launch_ros.actions import Node, LoadComposableNodes  # type: ignore[import-not-found]
+from launch_ros.actions import ComposableNodeContainer  # type: ignore[import-not-found]
+from launch_ros.descriptions import ComposableNode  # type: ignore[import-not-found]
+from ament_index_python.packages import get_package_share_directory  # type: ignore[import-not-found]
 
 NOACTION = "none"  # possibly PARAMACTION sometime in the future
 STARTACTION = "start"
@@ -63,7 +63,7 @@ class Stack:
         self.stack = []
         referenced_stacks = self.manifest.get("stack", [])
         for stackRef in referenced_stacks:
-            stackDef = self.edge_device.stack(stackRef['thingId'])
+            stackDef = self.edge_device.stack(stackRef["thingId"])
             stack = Stack(stackDef, self)
             self.stack.append(stack)
 

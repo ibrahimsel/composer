@@ -14,11 +14,11 @@
 import json
 from .base_plugin import BasePlugin, StackOperation
 
-import rclpy
-from rclpy.executors import MultiThreadedExecutor
-from std_msgs.msg import String
-from muto_msgs.msg import StackManifest
-from muto_msgs.srv import ComposePlugin
+import rclpy  # type: ignore[import-not-found]
+from rclpy.executors import MultiThreadedExecutor  # type: ignore[import-not-found]
+from std_msgs.msg import String  # type: ignore[import-not-found]
+from muto_msgs.msg import StackManifest  # type: ignore[import-not-found]
+from muto_msgs.srv import ComposePlugin  # type: ignore[import-not-found]
 
 
 class MutoDefaultComposePlugin(BasePlugin):

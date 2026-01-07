@@ -14,17 +14,17 @@
 
 import os
 import signal
-import launch
+import launch  # type: ignore[import-untyped]
 import multiprocessing
 import concurrent.futures
-import rclpy.logging
+import rclpy.logging  # type: ignore[import-not-found]
 from collections import OrderedDict
-from typing import List, Text, Tuple, Dict
-from launch import LaunchDescription, LaunchService
+from typing import List, Text, Tuple, Dict, Optional
+from launch import LaunchDescription, LaunchService  # type: ignore[import-untyped]
 import asyncio
-from launch.actions import RegisterEventHandler
-from launch.event_handlers import OnProcessStart, OnProcessExit
-from launch_ros.actions import Node
+from launch.actions import RegisterEventHandler  # type: ignore[import-untyped]
+from launch.event_handlers import OnProcessStart, OnProcessExit  # type: ignore[import-untyped]
+from launch_ros.actions import Node  # type: ignore[import-not-found]
 from composer.introspection.model.difference import Difference
 
 
@@ -63,7 +63,7 @@ class Ros2LaunchParent:
             name, value = argument.split(":=", maxsplit=1)
             # If the same argument name appears multiple times, last one wins
             parsed_launch_arguments[name] = value
-        return parsed_launch_arguments.items()
+        return list(parsed_launch_arguments.items())
 
     def start(self, launch_description: LaunchDescription):
         """
@@ -200,7 +200,7 @@ class Ros2LaunchParent:
     async def launch_a_launch_description(
         self,
         launch_description: launch.LaunchDescription,
-        launch_file_arguments: List[str] = None,
+        launch_file_arguments: Optional[List[str]] = None,
         noninteractive: bool = False,
         debug: bool = False,
         dry_run: bool = False,

@@ -14,10 +14,12 @@
 import importlib
 import json
 import uuid
-from muto_msgs.msg._stack_manifest import StackManifest
-import rclpy
-from rclpy.node import Node
-import rclpy.logging
+from typing import Any, Dict, Optional
+
+from muto_msgs.msg._stack_manifest import StackManifest  # type: ignore[import-not-found]
+import rclpy  # type: ignore[import-not-found]
+from rclpy.node import Node  # type: ignore[import-not-found]
+import rclpy.logging  # type: ignore[import-not-found]
 from composer.workflow.safe_evaluator import SafeEvaluator
 
 
@@ -86,7 +88,9 @@ class Pipeline:
                     )
         return plugin_dict
 
-    def execute_pipeline(self, additional_context: dict = None, next_manifest=None):
+    def execute_pipeline(
+        self, additional_context: Optional[Dict[str, Any]] = None, next_manifest=None
+    ):
         """
         Execute each pipeline step sequentially.
         If a step fails, execute compensation steps and abort the pipeline.
