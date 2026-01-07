@@ -289,7 +289,7 @@ class MutoDefaultLaunchPlugin(BasePlugin):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                preexec_fn=os.setsid,
+                start_new_session=True,
             )
             self._managed_processes[launch_file] = launch_process
             self.get_logger().info(f"Launch process started with PID {launch_process.pid}")
