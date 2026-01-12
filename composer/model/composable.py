@@ -11,27 +11,90 @@
 #   Composiv.ai - initial API and implementation
 #
 
-import os
-import composer.model.node as node
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
+from composer.model import node
 
 
+@dataclass
+class ComposableNode:
+    stack: Any
+    manifest: Optional[Dict[str, Any]] = None
+    package: str = ""
+    plugin: str = ""
+    name: str = ""
+    namespace: str = ""
+    param: List[Dict[str, Any]] = field(default_factory=list)
+    remap: List[Dict[str, str]] = field(default_factory=list)
+    action: str = ""
+
+    def __post_init__(self) -> None:
+        manifest = self.manifest or {}
+        self.package = str(manifest.get("pkg", manifest.get("package", self.package)))
+        self.plugin = str(manifest.get("plugin", self.plugin))
+        self.name = str(manifest.get("name", self.name))
+        self.namespace = str(manifest.get("namespace", self.namespace))
+        self.param = list(manifest.get("param", self.param) or [])
+        self.remap = list(manifest.get("remap", self.remap) or [])
+        self.action = str(manifest.get("action", self.action))
+
+    def resolve_namespace(self) -> str:
+        namespace = self.namespace or ""
+        if not namespace.startswith("/"):
+            namespace = f"/{namespace}"
+        if not namespace.endswith("/"):
+            namespace = f"{namespace}/"
+        return f"{namespace}/"
+
+    def toManifest(self) -> Dict[str, Any]:
+        return {
+            "package": self.package,
+            "plugin": self.plugin,
+            "name": self.name,
+            "namespace": self.namespace,
+            "param": self.param,
+            "remap": self.remap,
+            "action": self.action,
+        }
+
+
+@dataclass
 class Container:
-    def __init__(self, stack, manifest=None):
-        if manifest is None:
-            manifest = {}
+    stack: Any
+    manifest: Optional[Dict[str, Any]] = None
+    package: str = ""
+    executable: str = ""
+    name: str = ""
+    namespace: str = ""
+    nodes: List[ComposableNode] = field(default_factory=list)
+    output: str = "screen"
+    remap: List[Dict[str, str]] = field(default_factory=list)
+    action: str = ""
 
-        self.stack = stack
-        self.manifest = manifest
-        self.package = manifest.get("package", "")
-        self.executable = manifest.get("executable", "")
-        self.name = manifest.get("name", "")
-        self.namespace = manifest.get("namespace", os.getenv("MUTONS", default=""))
-        self.output = manifest.get("output", "screen")
-        self.nodes = [node.Node(stack, nDef, self) for nDef in manifest.get("node", [])]
-        self.remap = manifest.get("remap", [])
-        self.action = manifest.get("action", "")
+    def __post_init__(self) -> None:
+        manifest = self.manifest or {}
+        self.package = str(manifest.get("package", self.package))
+        self.executable = str(manifest.get("executable", self.executable))
+        self.name = str(manifest.get("name", self.name))
+        self.namespace = str(manifest.get("namespace", self.namespace))
+        self.output = str(manifest.get("output", self.output))
+        self.remap = list(manifest.get("remap", self.remap) or [])
+        self.action = str(manifest.get("action", self.action))
+        nodes = manifest.get("node") or manifest.get("nodes") or []
+        self.nodes = [ComposableNode(self.stack, node_manifest) for node_manifest in nodes]
 
-    def toManifest(self):
+    def resolve_namespace(self) -> str:
+        namespace = self.namespace or ""
+        if not namespace.startswith("/"):
+            namespace = f"/{namespace}"
+        if not namespace.endswith("/"):
+            namespace = f"{namespace}/"
+        return f"{namespace}/"
+
+    def toManifest(self) -> Dict[str, Any]:
         return {
             "package": self.package,
             "executable": self.executable,
@@ -43,12 +106,10 @@ class Container:
             "action": self.action,
         }
 
-    def resolve_namespace(self):
-        ns_prefix = "/" if not self.namespace.startswith("/") else ""
-        ns_suffix = "/" if not self.namespace.endswith("/") else ""
-        return f"{ns_prefix}{self.namespace}{ns_suffix}{self.name}/"
+    def __hash__(self) -> int:
+        return hash((self.package, self.name, self.namespace, self.executable))
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Container):
             return False
         return (
@@ -57,6 +118,3 @@ class Container:
             and self.namespace == other.namespace
             and self.executable == other.executable
         )
-
-    def __hash__(self):
-        return hash((self.package, self.name, self.namespace, self.executable))

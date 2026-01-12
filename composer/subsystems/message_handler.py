@@ -18,6 +18,7 @@ Manages all ROS 2 communication including topics, services, and publishers.
 
 import json
 from typing import Dict, Any, Optional
+import rclpy.logging  # type: ignore[import-not-found]
 from rclpy.node import Node  # type: ignore[import-not-found]
 from std_msgs.msg import String  # type: ignore[import-not-found]
 from muto_msgs.msg import MutoAction  # type: ignore[import-not-found]
@@ -30,7 +31,7 @@ class MessageRouter:
 
     def __init__(self, event_bus: EventBus, logger=None):
         self.event_bus = event_bus
-        self.logger = logger
+        self.logger = logger or rclpy.logging.get_logger("message_router")
 
     def route_muto_action(self, action: MutoAction) -> None:
         """Route MutoAction to orchestration manager via events."""
@@ -79,7 +80,7 @@ class PublisherManager:
         self.node = node
         # Consolidated publisher instead of multiple deprecated ones
         self.stack_state_pub = node.create_publisher(String, "stack_state", 10)
-        self.logger = node.get_logger()
+        self.logger = rclpy.logging.get_logger("publisher_manager")
 
     def publish_stack_state(self, stack_data: Dict[str, Any], state_type: str = "current") -> None:
         """Publish consolidated stack state information."""
@@ -106,7 +107,7 @@ class ServiceClientManager:
 
     def __init__(self, node: Node, core_twin_node_name: str = "core_twin"):
         self.node = node
-        self.logger = node.get_logger()
+        self.logger = rclpy.logging.get_logger("service_client_manager")
 
         # Initialize service clients
         self.get_stack_client = node.create_client(
@@ -162,10 +163,10 @@ class MessageHandler:
     def __init__(self, node: Node, event_bus: EventBus, core_twin_node_name: str = "core_twin"):
         self.node = node
         self.event_bus = event_bus
-        self.logger = node.get_logger()
+        self.logger = rclpy.logging.get_logger("message_handler")
 
         # Initialize components
-        self.router = MessageRouter(event_bus, self.logger)
+        self.router = MessageRouter(event_bus)
         self.publisher_manager = PublisherManager(node)
         self.service_manager = ServiceClientManager(node, core_twin_node_name)
         # Add alias for compatibility

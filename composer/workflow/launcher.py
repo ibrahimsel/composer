@@ -25,7 +25,6 @@ import asyncio
 from launch.actions import RegisterEventHandler  # type: ignore[import-untyped]
 from launch.event_handlers import OnProcessStart, OnProcessExit  # type: ignore[import-untyped]
 from launch_ros.actions import Node  # type: ignore[import-not-found]
-from composer.introspection.model.difference import Difference
 
 
 class Ros2LaunchParent:
@@ -427,46 +426,3 @@ class Ros2LaunchParent:
             ld.add_action(node_action)
 
         return ld
-
-    def apply_delta(
-        self, diff_result: Difference, extra_args: List[str], async_loop: asyncio.AbstractEventLoop
-    ):
-        """
-        Orchestrates:
-          - Launching all 'added' nodes
-          - Killing 'removed' nodes
-          - Doing nothing for 'common' nodes
-        Based on the Difference object from Delta.
-
-        Args:
-            diff_result (Difference): The difference containing added_nodes, removed_nodes, common_nodes
-            extra_args (List[str]): e.g. ["foo:=bar"] to pass to the launch service
-            async_loop (AbstractEventLoop): The asyncio loop in which to schedule the launch
-        """
-        # 1) Launch 'added' nodes
-        if diff_result.added_nodes:
-            ld = self.create_launch_description_for_added_nodes(diff_result.added_nodes)
-
-            async def _launch():
-                await self.launch_a_launch_description(
-                    ld, launch_file_arguments=extra_args, noninteractive=True
-                )
-
-            asyncio.run_coroutine_threadsafe(_launch(), async_loop)
-
-        # 2) Kill 'removed' nodes
-        if diff_result.removed_nodes:
-            removed_names = []
-            for key, node_info in diff_result.removed_nodes.items():
-                removed_names.append(node_info["name"])
-
-            if removed_names:
-                rclpy.logging.get_logger("muto_launch_parent").info(
-                    f"Killing removed nodes: {removed_names}"
-                )
-                self.kill_nodes_by_name(removed_names)
-
-        # 3) 'common_nodes' remain untouched
-        rclpy.logging.get_logger("muto_launch_parent").info(
-            "Done applying delta changes (added, removed, left common)."
-        )

@@ -26,6 +26,7 @@ from composer.events import (
     OrchestrationStartedEvent,
 )
 import rclpy  # type: ignore[import-not-found]
+import rclpy.logging  # type: ignore[import-not-found]
 from rclpy.node import Node  # type: ignore[import-not-found]
 from rclpy.callback_groups import ReentrantCallbackGroup  # type: ignore[import-not-found]
 from muto_msgs.srv import CoreTwin  # type: ignore[import-not-found]
@@ -37,7 +38,7 @@ class TwinServiceClient:
     def __init__(self, node: Node, event_bus: EventBus, logger=None):
         self.node = node
         self.event_bus = event_bus
-        self.logger = logger
+        self.logger = logger or rclpy.logging.get_logger("twin_service_client")
 
         # Service clients for CoreTwin
         self.callback_group = ReentrantCallbackGroup()
@@ -259,7 +260,7 @@ class TwinSynchronizer:
     def __init__(self, event_bus: EventBus, twin_client: TwinServiceClient, logger=None):
         self.event_bus = event_bus
         self.twin_client = twin_client
-        self.logger = logger
+        self.logger = logger or rclpy.logging.get_logger("twin_synchronizer")
 
         # Subscribe to events that require synchronization
         self.event_bus.subscribe(EventType.ORCHESTRATION_STARTED, self.handle_orchestration_started)
@@ -404,11 +405,11 @@ class DigitalTwinIntegration:
     def __init__(self, node: Node, event_bus: EventBus, logger=None):
         self.node = node
         self.event_bus = event_bus
-        self.logger = logger
+        self.logger = logger or rclpy.logging.get_logger("digital_twin_integration")
 
         # Initialize components
-        self.twin_client = TwinServiceClient(node, event_bus, logger)
-        self.synchronizer = TwinSynchronizer(event_bus, self.twin_client, logger)
+        self.twin_client = TwinServiceClient(node, event_bus)
+        self.synchronizer = TwinSynchronizer(event_bus, self.twin_client)
 
         if self.logger:
             self.logger.info("DigitalTwinIntegration subsystem initialized")
