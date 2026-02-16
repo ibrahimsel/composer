@@ -21,7 +21,6 @@ based on criticality policies.
 """
 
 import fnmatch
-import subprocess
 import threading
 import time
 from typing import Any
@@ -78,6 +77,7 @@ class GraphReconciliationManager:
         self._last_restart_time: dict[str, float] = {}  # FQN -> timestamp
         self._stabilization_active = False
         self._paused = False
+        self._managed_reconciliation_launchers: dict[str, Any] = {}  # FQN -> Ros2LaunchParent
         self._lock = threading.Lock()
 
         # Set up ROS 2 interfaces
@@ -610,15 +610,36 @@ class GraphReconciliationManager:
             ))
 
     def _restart_node_direct(self, fqn: str, pkg: str, exe: str) -> bool:
-        """Restart a node directly via ros2 run when package/executable known."""
-        self._logger.info(f"Restarting node {fqn} via ros2 run {pkg} {exe}")
+        """Restart a node via Ros2LaunchParent with a single-node LaunchDescription."""
+        self._logger.info(
+            f"Restarting node {fqn} via LaunchDescription (pkg={pkg}, exe={exe})"
+        )
         try:
-            subprocess.Popen(
-                ["ros2", "run", pkg, exe],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
+            from launch import LaunchDescription
+            from launch_ros.actions import Node as LaunchNode
+
+            from muto_composer.workflow.launcher import Ros2LaunchParent
+
+            name, ns = self._split_fqn(fqn)
+
+            ld = LaunchDescription([
+                LaunchNode(
+                    package=pkg,
+                    executable=exe,
+                    name=name,
+                    namespace=ns if ns != "/" else "",
+                    output="screen",
+                ),
+            ])
+
+            launcher = Ros2LaunchParent([])
+            launcher.start(ld)
+
+            # Track the launcher so kill actions can clean it up
+            with self._lock:
+                self._managed_reconciliation_launchers[fqn] = launcher
+
+            self._logger.info(f"Node {fqn} restart launched via Ros2LaunchParent")
             return True
         except Exception as e:
             self._logger.error(f"Failed to restart {fqn}: {e}")

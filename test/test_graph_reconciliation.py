@@ -68,6 +68,7 @@ def _make_manager(event_bus=None):
         mgr._last_restart_time = {}
         mgr._stabilization_active = False
         mgr._paused = False
+        mgr._managed_reconciliation_launchers = {}
         mgr._ros_available = False
         import threading
         mgr._lock = threading.Lock()
@@ -381,7 +382,11 @@ class TestReconciliationPolicies(unittest.TestCase):
             lambda e: actions.append(e),
         )
 
-        with patch("subprocess.Popen"):
+        with patch(
+            "muto_composer.subsystems.graph_reconciliation.GraphReconciliationManager"
+            "._restart_node_direct",
+            return_value=True,
+        ):
             mgr._reconcile_missing_node("/perception/lidar")
 
         self.assertEqual(len(actions), 1)
