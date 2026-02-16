@@ -24,7 +24,7 @@ from muto_composer.workflow.launcher import Ros2LaunchParent
 
 
 class JsonStackHandler(StackTypeHandler):
-    """Handler for stack/json type stacks."""
+    """Handler for stack/json (stack/declarative) type stacks."""
 
     def __init__(self, logger=None):
         self.logger = logger
@@ -32,12 +32,12 @@ class JsonStackHandler(StackTypeHandler):
         self.managed_launchers = {}
 
     def can_handle(self, payload: dict[str, Any]) -> bool:
-        """Check for stack/json content_type in properly defined solution."""
+        """Check for stack/json or stack/declarative content_type."""
         if not isinstance(payload, dict):
             return False
         metadata = payload.get("metadata", {})
         content_type = metadata.get("content_type", "")
-        return content_type == "stack/json"
+        return content_type in ("stack/json", "stack/declarative")
 
     def apply_to_plugin(self, plugin: BasePlugin, context: StackContext, request, response) -> bool:
         """Double dispatch: delegate to plugin's accept method."""

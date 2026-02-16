@@ -38,7 +38,7 @@ from muto_composer.utils.paths import ARTIFACT_STATE_FILE, WORKSPACES_PATH
 
 
 class ArchiveStackHandler(StackTypeHandler):
-    """Handler for stack/archive type stacks."""
+    """Handler for stack/archive (stack/workspace) type stacks."""
 
     def __init__(self, logger=None, ignored_packages: list[str] | None = None):
         self.is_up_to_date = False
@@ -46,12 +46,12 @@ class ArchiveStackHandler(StackTypeHandler):
         self.ignored_packages = ignored_packages if ignored_packages is not None else []
 
     def can_handle(self, payload: dict[str, Any]) -> bool:
-        """Check for stack/archive content_type in properly defined solution."""
+        """Check for stack/archive or stack/workspace content_type."""
         if not isinstance(payload, dict):
             return False
         metadata = payload.get("metadata", {})
         content_type = metadata.get("content_type", "")
-        return content_type == "stack/archive"
+        return content_type in ("stack/archive", "stack/workspace")
 
     def apply_to_plugin(self, plugin: BasePlugin, context: StackContext, request, response) -> bool:
         """Double dispatch: delegate to plugin's accept method."""

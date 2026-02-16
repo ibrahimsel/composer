@@ -67,8 +67,10 @@ class StackTypeRegistry:
         from .archive_handler import ArchiveStackHandler
         from .ditto_handler import DittoStackHandler
         from .json_handler import JsonStackHandler
+        from .native_handler import NativeStackHandler
 
-        # Register in priority order
+        # Register in priority order (most specific to most general)
         self.register_handler(JsonStackHandler(self.logger))
         self.register_handler(ArchiveStackHandler(self.logger, self.ignored_packages))
+        self.register_handler(NativeStackHandler(self.logger))
         self.register_handler(DittoStackHandler(self.logger))

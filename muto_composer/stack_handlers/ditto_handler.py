@@ -23,7 +23,7 @@ from muto_composer.plugins.base_plugin import (
 
 
 class DittoStackHandler(StackTypeHandler):
-    """Handler for Ditto (legacy launch/json) format stacks."""
+    """Handler for Ditto (stack/legacy) format stacks."""
 
     def __init__(self, logger=None):
         self.logger = logger
@@ -41,7 +41,7 @@ class DittoStackHandler(StackTypeHandler):
         content_type = metadata.get("content_type")
 
         # If there's a content_type, it's a properly defined solution
-        if content_type and content_type not in ("stack/json", "stack/ditto"):
+        if content_type and content_type not in ("stack/json", "stack/ditto", "stack/legacy"):
             return False
 
         # Check for legacy launch structures

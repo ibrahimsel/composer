@@ -14,11 +14,13 @@
 from .archive_handler import ArchiveStackHandler
 from .ditto_handler import DittoStackHandler
 from .json_handler import JsonStackHandler
+from .native_handler import NativeStackHandler
 from .registry import StackTypeRegistry
 
 __all__ = [
     "StackTypeRegistry",
     "JsonStackHandler",
     "ArchiveStackHandler",
+    "NativeStackHandler",
     "DittoStackHandler",
 ]
