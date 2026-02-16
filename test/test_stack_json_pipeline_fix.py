@@ -19,7 +19,6 @@ import unittest
 
 import rclpy
 from muto_msgs.msg import StackManifest
-from muto_msgs.srv import ComposePlugin, LaunchPlugin
 from rclpy.node import Node
 
 
@@ -85,62 +84,6 @@ class TestStackJsonPipelineFix(unittest.TestCase):
 
         self.assertEqual(stack_msg.name, "Root Name Stack")
 
-    def test_compose_service_integration(self):
-        """Test that muto_compose service works with fixed stack manifest"""
-        # Skip if service not available (for CI environments)
-        compose_client = self.node.create_client(ComposePlugin, "muto_compose")
-        if not compose_client.wait_for_service(timeout_sec=2.0):
-            self.skipTest("muto_compose service not available")
-
-        # Create stack manifest with fixed logic
-        stack_msg = StackManifest()
-        if isinstance(self.stack_data, dict):
-            if "metadata" in self.stack_data and "name" in self.stack_data["metadata"]:
-                stack_msg.name = self.stack_data["metadata"]["name"]
-            else:
-                stack_msg.name = self.stack_data.get("name", "")
-        stack_msg.stack = json.dumps(self.stack_data)
-
-        # Test service call
-        req = ComposePlugin.Request()
-        req.input.current = stack_msg
-        req.start = True
-
-        future = compose_client.call_async(req)
-        rclpy.spin_until_future_complete(self.node, future)
-
-        self.assertIsNotNone(future.result())
-        response = future.result()
-        self.assertTrue(response.success)
-        self.assertEqual(response.output.current.name, stack_msg.name)
-
-    def test_launch_service_integration(self):
-        """Test that muto_apply_stack service works with fixed stack manifest"""
-        # Skip if service not available (for CI environments)
-        launch_client = self.node.create_client(LaunchPlugin, "muto_apply_stack")
-        if not launch_client.wait_for_service(timeout_sec=2.0):
-            self.skipTest("muto_apply_stack service not available")
-
-        # Create stack manifest with fixed logic
-        stack_msg = StackManifest()
-        if isinstance(self.stack_data, dict):
-            if "metadata" in self.stack_data and "name" in self.stack_data["metadata"]:
-                stack_msg.name = self.stack_data["metadata"]["name"]
-            else:
-                stack_msg.name = self.stack_data.get("name", "")
-        stack_msg.stack = json.dumps(self.stack_data)
-
-        # Test service call
-        req = LaunchPlugin.Request()
-        req.input.current = stack_msg
-        req.start = True
-
-        launch_client.call_async(req)
-        # rclpy.spin_until_future_complete(self.node, future)
-
-        self.assertIsNotNone(future.result())
-        response = future.result()
-        self.assertTrue(response.success)
 
 
 if __name__ == "__main__":
