@@ -76,6 +76,18 @@ class EventType(Enum):
     # Process Health Events
     PROCESS_CRASHED = "process.crashed"
 
+    # Graph Reconciliation Events
+    GRAPH_STATE_UPDATED = "graph.state.updated"
+    GRAPH_DRIFT_DETECTED = "graph.drift.detected"
+    GRAPH_DRIFT_RESOLVED = "graph.drift.resolved"
+    RECONCILIATION_STARTED = "reconciliation.started"
+    RECONCILIATION_ACTION_TAKEN = "reconciliation.action.taken"
+    RECONCILIATION_COMPLETED = "reconciliation.completed"
+    RECONCILIATION_FAILED = "reconciliation.failed"
+    NODE_APPEARED = "node.appeared"
+    NODE_DISAPPEARED = "node.disappeared"
+    NODE_RESTARTED = "node.restarted"
+
 
 class BaseComposeEvent:
     """Base class for all composer events."""
@@ -534,6 +546,54 @@ class ProcessCrashedEvent(BaseComposeEvent):
         self.exit_code = exit_code
         self.error_message = error_message
         self.process_output = process_output
+
+
+class GraphDriftDetectedEvent(BaseComposeEvent):
+    """Event triggered when graph drift is detected by the Daemon."""
+
+    def __init__(
+        self,
+        event_type: EventType = None,
+        source_component: str = "graph_reconciliation",
+        missing_nodes: list[str] | None = None,
+        unexpected_nodes: list[str] | None = None,
+        stack_name: str = "",
+        **kwargs,
+    ):
+        super().__init__(
+            event_type=event_type or EventType.GRAPH_DRIFT_DETECTED,
+            source_component=source_component,
+            stack_name=stack_name,
+            **kwargs,
+        )
+        self.missing_nodes = missing_nodes or []
+        self.unexpected_nodes = unexpected_nodes or []
+
+
+class ReconciliationActionEvent(BaseComposeEvent):
+    """Event triggered when a reconciliation action is taken."""
+
+    def __init__(
+        self,
+        event_type: EventType = None,
+        source_component: str = "graph_reconciliation",
+        action_type: str = "",
+        node_fqn: str = "",
+        criticality: str = "standard",
+        success: bool = False,
+        details: str = "",
+        **kwargs,
+    ):
+        super().__init__(
+            event_type=event_type or EventType.RECONCILIATION_ACTION_TAKEN,
+            source_component=source_component,
+            **kwargs,
+        )
+        self.action_type = action_type
+        self.node_fqn = node_fqn
+        self.criticality = criticality
+        self.success = success
+        self.details = details
 
 
 class PipelineEvents:

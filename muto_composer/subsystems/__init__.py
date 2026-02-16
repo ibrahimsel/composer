@@ -17,6 +17,7 @@ Contains modular components for stack management, orchestration, and pipeline ex
 """
 
 from .digital_twin_integration import DigitalTwinIntegration
+from .graph_reconciliation import GraphReconciliationManager
 from .message_handler import MessageHandler
 from .orchestration_manager import OrchestrationManager
 from .pipeline_engine import PipelineEngine
@@ -29,6 +30,7 @@ __all__ = [
     "OrchestrationManager",
     "PipelineEngine",
     "DigitalTwinIntegration",
+    "GraphReconciliationManager",
     "ComposerWatchdog",
     "HealthStatus",
     "SubsystemHealth",

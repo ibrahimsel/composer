@@ -26,6 +26,7 @@ from std_msgs.msg import String
 
 from muto_composer.events import EventBus, EventType, ProcessCrashedEvent, StackRequestEvent
 from muto_composer.subsystems.digital_twin_integration import DigitalTwinIntegration
+from muto_composer.subsystems.graph_reconciliation import GraphReconciliationManager
 from muto_composer.subsystems.message_handler import MessageHandler
 from muto_composer.subsystems.orchestration_manager import OrchestrationManager
 from muto_composer.subsystems.pipeline_engine import PipelineEngine
@@ -91,6 +92,10 @@ class MutoComposer(Node):
             self.orchestration_manager = OrchestrationManager(event_bus=self.event_bus, logger=self.get_logger())
 
             self.pipeline_engine = PipelineEngine(event_bus=self.event_bus, logger=self.get_logger())
+
+            self.graph_reconciliation = GraphReconciliationManager(
+                node=self, event_bus=self.event_bus, logger=self.get_logger()
+            )
 
             self.get_logger().info("All subsystems initialized successfully")
 
