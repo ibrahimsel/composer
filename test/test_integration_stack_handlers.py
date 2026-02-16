@@ -12,7 +12,7 @@
 #
 
 """
-Integration tests for stack handlers in the refactored architecture.
+Integration tests for stack handlers in the architecture.
 
 These tests focus on end-to-end workflows through the handler pattern,
 testing outcomes rather than implementation details.

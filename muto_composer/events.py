@@ -12,7 +12,7 @@
 #
 
 """
-Event system for the refactored Muto Composer.
+Event system for the Muto Composer.
 Provides event-driven communication between subsystems.
 """
 

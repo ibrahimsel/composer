@@ -12,7 +12,7 @@
 #
 
 """
-Subsystems package for the refactored Muto Composer.
+Subsystems package for the Muto Composer.
 Contains modular components for stack management, orchestration, and pipeline execution.
 """
 

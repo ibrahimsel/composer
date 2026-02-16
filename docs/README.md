@@ -2,7 +2,7 @@
 
 ## **Document Overview**
 
-This comprehensive reference document describes the current architecture, design patterns, and implementation details of the Eclipse Muto Composer system. The Composer has been successfully refactored from a monolithic design into a modular, event-driven architecture following modern software engineering principles.
+This comprehensive reference document describes the current architecture, design patterns, and implementation details of the Eclipse Muto Composer system.
 
 ## **Table of Contents**
 

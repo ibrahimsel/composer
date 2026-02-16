@@ -12,7 +12,7 @@
 #
 
 """
-Stack management subsystem for the refactored Muto Composer.
+Stack management subsystem for the Muto Composer.
 Handles stack states, analysis, and transformations.
 """
 

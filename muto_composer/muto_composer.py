@@ -12,7 +12,7 @@
 #
 
 """
-Refactored Muto Composer using modular, event-driven architecture.
+Muto Composer using modular, event-driven architecture.
 Coordinates subsystems to handle stack deployment orchestration.
 """
 
@@ -37,7 +37,7 @@ from muto_composer.utils.stack_parser import create_stack_parser
 
 class MutoComposer(Node):
     """
-    Refactored Muto Composer using modular, event-driven architecture.
+    Muto Composer using modular, event-driven architecture.
     Coordinates subsystems to handle stack deployment orchestration.
     """
 
@@ -76,7 +76,7 @@ class MutoComposer(Node):
         self.method = None  # Deprecated - now extracted from events
         self.stack_parser = create_stack_parser(self.get_logger())  # For test compatibility
 
-        self.get_logger().info("Refactored MutoComposer initialized successfully")
+        self.get_logger().info("MutoComposer initialized successfully")
 
     def _initialize_subsystems(self):
         """Initialize all subsystems in correct dependency order."""

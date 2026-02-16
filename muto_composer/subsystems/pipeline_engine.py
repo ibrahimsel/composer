@@ -12,7 +12,7 @@
 #
 
 """
-Pipeline engine subsystem for the refactored Muto Composer.
+Pipeline engine subsystem for the Muto Composer.
 Manages pipeline configurations and execution.
 """
 

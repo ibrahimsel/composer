@@ -12,7 +12,7 @@
 #
 
 """
-Message handling subsystem for the refactored Muto Composer.
+Message handling subsystem for the Muto Composer.
 Manages all ROS 2 communication including topics, services, and publishers.
 """
 

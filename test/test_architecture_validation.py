@@ -12,7 +12,7 @@
 #
 
 """
-Validation tests for the refactored event-driven architecture.
+Validation tests for the event-driven architecture.
 Tests that the new modular design works correctly without dependencies on deprecated functionality.
 """
 

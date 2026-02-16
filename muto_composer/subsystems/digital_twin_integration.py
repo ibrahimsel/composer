@@ -12,7 +12,7 @@
 #
 
 """
-Digital twin integration subsystem for the refactored Muto Composer.
+Digital twin integration subsystem for the Muto Composer.
 Manages communication with CoreTwin services and digital twin synchronization.
 """
 

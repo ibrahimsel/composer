@@ -12,7 +12,7 @@
 #
 
 """
-Orchestration management subsystem for the refactored Muto Composer.
+Orchestration management subsystem for the Muto Composer.
 Handles high-level deployment workflows and coordination.
 """
 
