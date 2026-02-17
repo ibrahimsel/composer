@@ -29,8 +29,6 @@ from muto_composer.events import (
     EventType,
     GraphStateUpdatedEvent,
     OrchestrationStartedEvent,
-    StackAnalyzedEvent,
-    StackRequestEvent,
 )
 
 
@@ -47,204 +45,52 @@ class TwinServiceClient:
 
         # Initialize service clients
         self.core_twin_client = self.node.create_client(
-            CoreTwin, "/core_twin/get_stack_definition", callback_group=self.callback_group
+            CoreTwin, "/muto/core_twin/get_stack_definition", callback_group=self.callback_group
         )
-
-        # Subscribe to events that require twin services
-        self.event_bus.subscribe(EventType.STACK_REQUEST, self.handle_stack_request)
 
         if self.logger:
             self.logger.info("TwinServiceClient initialized")
 
-    def handle_stack_request(self, event: StackRequestEvent):
-        """Handle stack request by fetching appropriate manifests."""
-        try:
-            if event.action in ["compose", "decompose"]:
-                if event.action == "compose":
-                    self._handle_compose_request(event)
-                else:
-                    self._handle_decompose_request(event)
-            elif event.action == "kill":
-                # Kill actions don't need twin manifest handling - just pass through
-                if self.logger:
-                    self.logger.debug(f"Kill action for {event.stack_name} - no twin manifest handling needed")
-            else:
-                if self.logger:
-                    self.logger.warning(f"Unhandled action in stack request: {event.action}")
+    def get_stack_manifest(self, stack_id: str) -> dict[str, Any] | None:
+        """Retrieve stack manifest from CoreTwin's get_stack_definition service.
 
-        except Exception as e:
-            if self.logger:
-                self.logger.error(f"Error handling stack request: {e}")
+        Args:
+            stack_id: The Ditto thingId of the stack (e.g. org.eclipse.muto.sandbox:talker_listener)
 
-    def _handle_compose_request(self, event: StackRequestEvent):
-        """Handle compose request by getting manifests."""
-        try:
-            # Get real stack manifest first
-            real_manifest = self.get_real_stack_manifest(event.stack_name)
-
-            # Get desired stack manifest
-            desired_manifest = self.get_desired_stack_manifest(event.stack_name)
-
-            # If no desired manifest exists and we have a stack payload, create it
-            if not desired_manifest and event.stack_payload:
-                self.create_desired_stack_manifest(event.stack_name, event.stack_payload)
-                desired_manifest = event.stack_payload
-
-            # Publish stack analyzed event
-            analyzed_event = StackAnalyzedEvent(
-                event_type=EventType.STACK_ANALYZED,
-                source_component="twin_service_client",
-                correlation_id=event.correlation_id,
-                stack_name=event.stack_name,
-                action=event.action,
-                analysis_result={
-                    "stack_type": "compose",
-                    "requires_merging": bool(real_manifest),
-                    "has_desired_manifest": bool(desired_manifest),
-                    "has_real_manifest": bool(real_manifest),
-                },
-                processing_requirements={
-                    "merge_manifests": bool(real_manifest),
-                    "validate_dependencies": True,
-                    "resolve_expressions": True,
-                },
-                stack_payload=event.stack_payload or {},  # Use direct field instead of nested structure
-                metadata={
-                    "desired_manifest": desired_manifest or {},
-                    "real_manifest": real_manifest or {},
-                },
-            )
-
-            self.event_bus.publish_sync(analyzed_event)
-
-            if self.logger:
-                self.logger.info(f"Processed compose request for stack: {event.stack_name}")
-
-        except Exception as e:
-            if self.logger:
-                self.logger.error(f"Error processing compose request: {e}")
-
-    def _handle_decompose_request(self, event: StackRequestEvent):
-        """Handle decompose request by getting current manifest."""
-        try:
-            # Get current stack manifest
-            current_manifest = self.get_desired_stack_manifest(event.stack_name)
-
-            if not current_manifest:
-                if self.logger:
-                    self.logger.warning(f"No manifest found for decompose: {event.stack_name}")
-                return
-
-            # Publish stack analyzed event
-            analyzed_event = StackAnalyzedEvent(
-                event_type=EventType.STACK_ANALYZED,
-                source_component="twin_service_client",
-                correlation_id=event.correlation_id,
-                stack_name=event.stack_name,
-                action=event.action,
-                analysis_result={
-                    "stack_type": "decompose",
-                    "requires_merging": False,
-                    "has_current_manifest": True,
-                },
-                processing_requirements={
-                    "merge_manifests": False,
-                    "validate_dependencies": False,
-                    "resolve_expressions": False,
-                },
-                stack_payload=event.stack_payload or {},  # Use direct field instead of nested structure
-                metadata={"current_manifest": current_manifest},
-            )
-
-            self.event_bus.publish_sync(analyzed_event)
-
-            if self.logger:
-                self.logger.info(f"Processed decompose request for stack: {event.stack_name}")
-
-        except Exception as e:
-            if self.logger:
-                self.logger.error(f"Error processing decompose request: {e}")
-
-    def get_desired_stack_manifest(self, stack_name: str) -> dict[str, Any] | None:
-        """Retrieve desired stack manifest from CoreTwin."""
+        Returns:
+            The stack properties dict, or None on failure.
+        """
         try:
             if not self.core_twin_client.wait_for_service(timeout_sec=2.0):
                 if self.logger:
-                    self.logger.warning("CoreTwin service not available")
+                    self.logger.warning("CoreTwin get_stack_definition service not available")
                 return None
 
             request = CoreTwin.Request()
-            request.input = stack_name
+            request.input = stack_id
 
             future = self.core_twin_client.call_async(request)
             rclpy.spin_until_future_complete(self.node, future, timeout_sec=5.0)
 
             if future.result():
                 response = future.result()
-                if response.success:
-                    if self.logger:
-                        self.logger.debug(f"Retrieved desired manifest for stack: {stack_name}")
+                if response.output:
                     import json
 
-                    return json.loads(response.output) if response.output else {}
-                else:
-                    if self.logger:
-                        self.logger.warning(f"Failed to get desired manifest: {response.message}")
+                    manifest = json.loads(response.output)
+                    if manifest:
+                        if self.logger:
+                            self.logger.info(f"Retrieved stack manifest for: {stack_id}")
+                        return manifest
 
+            if self.logger:
+                self.logger.warning(f"CoreTwin returned empty manifest for: {stack_id}")
             return None
 
         except Exception as e:
             if self.logger:
-                self.logger.error(f"Error getting desired stack manifest: {e}")
+                self.logger.error(f"Error getting stack manifest for {stack_id}: {e}")
             return None
-
-    def get_real_stack_manifest(self, stack_name: str) -> dict[str, Any] | None:
-        """Retrieve real stack manifest from CoreTwin."""
-        try:
-            if not self.core_twin_client.wait_for_service(timeout_sec=2.0):
-                if self.logger:
-                    self.logger.warning("CoreTwin service not available")
-                return None
-
-            request = CoreTwin.Request()
-            request.input = f"real_{stack_name}"  # Prefix to indicate real manifest
-
-            future = self.core_twin_client.call_async(request)
-            rclpy.spin_until_future_complete(self.node, future, timeout_sec=5.0)
-
-            if future.result():
-                response = future.result()
-                if response.success:
-                    if self.logger:
-                        self.logger.debug(f"Retrieved real manifest for stack: {stack_name}")
-                    import json
-
-                    return json.loads(response.output) if response.output else {}
-                else:
-                    if self.logger:
-                        self.logger.warning(f"Failed to get real manifest: {response.message}")
-
-            return None
-
-        except Exception as e:
-            if self.logger:
-                self.logger.error(f"Error getting real stack manifest: {e}")
-            return None
-
-    def create_desired_stack_manifest(self, stack_name: str, manifest_data: dict[str, Any]) -> bool:
-        """Create desired stack manifest in CoreTwin (stub implementation)."""
-        try:
-            # For now, this is a stub implementation since we don't have a separate service
-            # In a full implementation, this would use a dedicated creation service
-            if self.logger:
-                self.logger.info(f"Would create desired manifest for stack: {stack_name}")
-                self.logger.debug(f"Manifest data keys: {list(manifest_data.keys())}")
-            return True
-
-        except Exception as e:
-            if self.logger:
-                self.logger.error(f"Error creating desired stack manifest: {e}")
-            return False
 
 
 class TwinSynchronizer:
@@ -394,23 +240,6 @@ class TwinSynchronizer:
         try:
             stack_name = event.execution_plan.get("stack_name", "unknown")
 
-            if event.action == "compose":
-                # Ensure desired manifest exists for compose
-                desired_manifest = self.twin_client.get_desired_stack_manifest(stack_name)
-                if not desired_manifest:
-                    # Create from stack payload if available
-                    stack_payload = event.metadata.get("stack_payload", {})
-                    if stack_payload:
-                        self.twin_client.create_desired_stack_manifest(stack_name, stack_payload)
-                        if self.logger:
-                            self.logger.info(f"Created desired manifest during sync for: {stack_name}")
-
-            elif event.action == "decompose":
-                # Verify current state for decompose
-                current_manifest = self.twin_client.get_desired_stack_manifest(stack_name)
-                if not current_manifest and self.logger:
-                    self.logger.warning(f"No manifest to decompose for: {stack_name}")
-
             # Update sync state
             if event.correlation_id in self.sync_state:
                 self.sync_state[event.correlation_id]["status"] = "synchronized"
@@ -509,18 +338,9 @@ class DigitalTwinIntegration:
         """Get twin synchronizer."""
         return self.synchronizer
 
-    # Legacy interface methods for compatibility
-    def get_desired_stack_manifest(self, stack_name: str) -> dict[str, Any] | None:
-        """Legacy interface: Get desired stack manifest."""
-        return self.twin_client.get_desired_stack_manifest(stack_name)
-
-    def get_real_stack_manifest(self, stack_name: str) -> dict[str, Any] | None:
-        """Legacy interface: Get real stack manifest."""
-        return self.twin_client.get_real_stack_manifest(stack_name)
-
-    def create_desired_stack_manifest(self, stack_name: str, manifest_data: dict[str, Any]) -> bool:
-        """Legacy interface: Create desired stack manifest."""
-        return self.twin_client.create_desired_stack_manifest(stack_name, manifest_data)
+    def get_stack_manifest(self, stack_id: str) -> dict[str, Any] | None:
+        """Get stack manifest from CoreTwin."""
+        return self.twin_client.get_stack_manifest(stack_id)
 
     def enable(self):
         """Enable digital twin integration."""

@@ -51,17 +51,17 @@ class MutoDefaultComposePlugin(BasePlugin):
 
         try:
             # Check if this is a kill action - kill actions pass through compose without validation
+            # Only reference-only payloads (just stackId/state) can be kill actions,
+            # never full manifests that contain node/composable/launch content
             is_kill_action = False
             if request.input.current.stack:
                 try:
                     stack_data = json.loads(request.input.current.stack)
-                    # Kill actions have stackId in value key or at top level, not a full manifest
-                    if (
-                        stack_data.get("value", {}).get("stackId")
-                        or (stack_data.get("path", "").endswith("/kill") and not stack_data.get("launch"))
-                        or (stack_data.get("stackId") and not stack_data.get("launch"))
-                    ):
-                        is_kill_action = True
+                    if not self._is_manifest_payload(stack_data):
+                        # Reference-only payload — treat as kill if it has a stackId or /kill path
+                        stack_id = stack_data.get("value", {}).get("stackId") or stack_data.get("stackId")
+                        if stack_id or stack_data.get("path", "").endswith("/kill"):
+                            is_kill_action = True
                 except json.JSONDecodeError:
                     pass
 

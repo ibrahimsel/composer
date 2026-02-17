@@ -17,7 +17,6 @@ import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from threading import Event
 from typing import Any
 
 import rclpy
@@ -162,61 +161,47 @@ class BasePlugin(Node):
     def _fetch_stack_manifest(self, stack_id: str) -> dict[str, Any] | None:
         """
         Retrieve a stack manifest from CoreTwin using the provided stack ID.
+
+        Uses a temporary node to avoid deadlocking the single-threaded executor
+        when called from inside a service callback (e.g. handle_start).
         """
         if not stack_id:
             return None
 
+        tmp_node = None
         try:
-            if not self._stack_definition_client:
-                return None
+            tmp_node = rclpy.create_node(
+                f"_coretwin_fetch_{self.get_name()}", enable_rosout=False
+            )
+            cli = tmp_node.create_client(CoreTwin, "/muto/core_twin/get_stack_definition")
 
-            if not self._stack_definition_client.wait_for_service(timeout_sec=0.5):
+            if not cli.wait_for_service(timeout_sec=2.0):
                 self.get_logger().warning("CoreTwin get_stack_definition service is not available.")
                 return None
 
             request = CoreTwin.Request()
             request.input = stack_id
 
-            future = self._stack_definition_client.call_async(request)
-            result_holder = {"manifest": None, "event": Event()}
+            future = cli.call_async(request)
+            rclpy.spin_until_future_complete(tmp_node, future, timeout_sec=5.0)
 
-            def _cb(fut):
-                self._handle_twin_response(fut, result_holder, stack_id)
+            if future.result():
+                result = future.result()
+                if result.output:
+                    manifest = json.loads(result.output)
+                    if manifest:
+                        self.get_logger().info(f"Fetched stack manifest for stackId '{stack_id}' from CoreTwin")
+                        return manifest
 
-            future.add_done_callback(_cb)
-
-            completed = result_holder["event"].wait(timeout=5.0)
-            if not completed:
-                self.get_logger().warning(f"Timeout reached while waiting for stack manifest: {stack_id}")
-                return None
-
-            return result_holder["manifest"]
+            self.get_logger().warning(f"CoreTwin returned empty manifest for stackId '{stack_id}'")
+            return None
 
         except Exception as exc:
             self.get_logger().error(f"Error fetching stack manifest for stackId '{stack_id}': {exc}")
-
-        return None
-
-    def _handle_twin_response(self, future: rclpy.Future, holder: dict[str, Any], stack_id: str):
-        """
-        Callback to process CoreTwin responses without blocking execution.
-        """
-        try:
-            result = future.result()
-            if not result or not getattr(result, "output", None):
-                self.get_logger().warning(f"CoreTwin returned an empty manifest for stackId '{stack_id}'.")
-                holder["manifest"] = None
-            else:
-                try:
-                    holder["manifest"] = json.loads(result.output)
-                except json.JSONDecodeError as json_err:
-                    self.get_logger().error(f"Failed to decode manifest for stackId '{stack_id}': {json_err}")
-                    holder["manifest"] = None
-        except Exception as exc:
-            self.get_logger().error(f"Error processing manifest response for stackId '{stack_id}': {exc}")
-            holder["manifest"] = None
+            return None
         finally:
-            holder["event"].set()
+            if tmp_node is not None:
+                tmp_node.destroy_node()
 
     def _is_manifest_payload(self, stack_dict: dict[str, Any]) -> bool:
         """
@@ -252,6 +237,12 @@ class BasePlugin(Node):
             if self._is_manifest_payload(parsed):
                 return parsed
 
+            # Payload looks like a reference (only stackId/state keys), not a full manifest
+            self.get_logger().info(
+                f"Payload treated as reference (keys={list(parsed.keys())}), "
+                "attempting CoreTwin fetch for full manifest"
+            )
+
             # Support payloads that wrap stackId under a value field
             stack_id = None
             if "stackId" in parsed:
@@ -267,9 +258,12 @@ class BasePlugin(Node):
             if manifest:
                 return manifest
 
-            # Fallback to parsed data if manifest retrieval fails
-            self.get_logger().warning(f"Falling back to stack reference for stackId '{stack_id}'.")
-            return parsed
+            # Do not proceed with a reference-only payload — it will fail downstream
+            self.get_logger().error(
+                f"Failed to retrieve stack manifest for stackId '{stack_id}' from CoreTwin. "
+                "Cannot proceed without a full manifest."
+            )
+            return None
 
         except (json.JSONDecodeError, TypeError) as e:
             self.get_logger().warning(f"Failed to parse stack string as JSON: {e}")

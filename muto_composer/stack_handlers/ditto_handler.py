@@ -20,6 +20,7 @@ from muto_composer.plugins.base_plugin import (
     StackOperation,
     StackTypeHandler,
 )
+from muto_composer.workflow.launcher import Ros2LaunchParent
 
 
 class DittoStackHandler(StackTypeHandler):
@@ -27,6 +28,7 @@ class DittoStackHandler(StackTypeHandler):
 
     def __init__(self, logger=None):
         self.logger = logger
+        self.managed_launchers = {}
 
     def can_handle(self, payload: dict[str, Any]) -> bool:
         """
@@ -60,11 +62,13 @@ class DittoStackHandler(StackTypeHandler):
             if context.operation == StackOperation.PROVISION:
                 return True
             elif context.operation == StackOperation.START:
-                return self._start_ditto(context)
+                return self._start_ditto(context, plugin)
             elif context.operation == StackOperation.KILL:
-                return self._kill_ditto(context)
+                return self._kill_ditto(context, plugin)
             elif context.operation == StackOperation.APPLY:
-                return self._apply_ditto(context)
+                return self._apply_ditto(context, plugin)
+            elif context.operation == StackOperation.COMPOSE:
+                return True
             else:
                 if self.logger:
                     self.logger.warning(f"Unsupported operation for Ditto stack: {context.operation}")
@@ -74,27 +78,35 @@ class DittoStackHandler(StackTypeHandler):
                 self.logger.error(f"Error processing Ditto stack operation: {e}")
             return False
 
-    def _start_ditto(self, context: StackContext) -> bool:
+    def _start_ditto(self, context: StackContext, plugin: BasePlugin) -> bool:
         """Start a Ditto stack."""
         try:
             # Check if it's a script-based legacy stack (on_start/on_kill)
             if context.stack_data.get("on_start") and context.stack_data.get("on_kill"):
-                # Script-based legacy stack - let plugin handle this
                 if self.logger:
                     self.logger.info("Ditto script-based stack start delegated to plugin")
                 return True
 
-            # Otherwise, try to use Stack model with node/composable arrays
+            # Kill any previous launch for this stack before starting
+            self._kill_ditto(context, plugin)
+
+            launcher = Ros2LaunchParent([])
+
+            # Try node/composable arrays
             if context.stack_data.get("node") or context.stack_data.get("composable"):
                 stack = Stack(manifest=context.stack_data)
-                stack.launch(context.launcher)
+                stack.launch(launcher)
+                self.managed_launchers[context.hash] = launcher
+                plugin._managed_launchers[context.hash] = launcher
                 return True
 
-            # Check if there's a launch structure
+            # Try launch structure
             launch_data = context.stack_data.get("launch")
             if launch_data:
                 stack = Stack(manifest=launch_data)
-                stack.launch(context.launcher)
+                stack.launch(launcher)
+                self.managed_launchers[context.hash] = launcher
+                plugin._managed_launchers[context.hash] = launcher
                 return True
 
             if self.logger:
@@ -106,55 +118,44 @@ class DittoStackHandler(StackTypeHandler):
                 self.logger.error(f"Error starting Ditto stack: {e}")
             return False
 
-    def _kill_ditto(self, context: StackContext) -> bool:
+    def _kill_ditto(self, context: StackContext, plugin: BasePlugin) -> bool:
         """Kill a Ditto stack."""
         try:
-            # Check if it's a script-based legacy stack
-            if context.stack_data.get("on_start") and context.stack_data.get("on_kill"):
-                # Script-based legacy stack - let plugin handle this
-                if self.logger:
-                    self.logger.info("Ditto script-based stack kill delegated to plugin")
-                return True
-
-            # Otherwise, try to use Stack model
-            if context.stack_data.get("node") or context.stack_data.get("composable"):
-                stack = Stack(manifest=context.stack_data)
-                stack.kill()
-                return True
-
-            # Check if there's a launch structure
-            launch_data = context.stack_data.get("launch")
-            if launch_data:
-                stack = Stack(manifest=launch_data)
-                stack.kill()
-                return True
-
-            if self.logger:
-                self.logger.warning("No recognizable launch structure in Ditto stack for kill")
-            return False
+            launcher = self.managed_launchers.get(context.hash)
+            if launcher:
+                launcher.kill()
+                self.managed_launchers.pop(context.hash, None)
+                plugin._managed_launchers.pop(context.hash, None)
+            return True
 
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error killing Ditto stack: {e}")
             return False
 
-    def _apply_ditto(self, context: StackContext) -> bool:
+    def _apply_ditto(self, context: StackContext, plugin: BasePlugin) -> bool:
         """Apply a Ditto stack configuration."""
         try:
-            # Legacy stacks with node/composable support apply
+            # Kill then start
+            self._kill_ditto(context, plugin)
+
+            launcher = Ros2LaunchParent([])
+
             if context.stack_data.get("node") or context.stack_data.get("composable"):
                 stack = Stack(manifest=context.stack_data)
-                stack.apply(context.launcher)
+                stack.apply(launcher)
+                self.managed_launchers[context.hash] = launcher
+                plugin._managed_launchers[context.hash] = launcher
                 return True
 
-            # Check if there's a launch structure
             launch_data = context.stack_data.get("launch")
             if launch_data:
                 stack = Stack(manifest=launch_data)
-                stack.apply(context.launcher)
+                stack.apply(launcher)
+                self.managed_launchers[context.hash] = launcher
+                plugin._managed_launchers[context.hash] = launcher
                 return True
 
-            # Script-based legacy stacks don't support apply - no-op
             if self.logger:
                 self.logger.info("Ditto script-based stacks do not support apply (no-op)")
             return True

@@ -89,6 +89,8 @@ class TestDittoStackHandlerStackModelIntegration(unittest.TestCase):
 
     def setUp(self):
         self.handler = DittoStackHandler(logger=MagicMock())
+        self.mock_plugin = MagicMock()
+        self.mock_plugin._managed_launchers = {}
 
     def _create_context(self, stack_data, operation):
         """Helper to create a StackContext."""
@@ -103,83 +105,92 @@ class TestDittoStackHandlerStackModelIntegration(unittest.TestCase):
             hash="testhash",
         )
 
+    @patch("muto_composer.stack_handlers.ditto_handler.Ros2LaunchParent")
     @patch("muto_composer.stack_handlers.ditto_handler.Stack")
-    def test_start_ditto_instantiates_stack_and_launches(self, mock_stack_class):
+    def test_start_ditto_instantiates_stack_and_launches(self, mock_stack_class, mock_launcher_class):
         """Test that _start_ditto creates Stack and calls launch()."""
         mock_stack = MagicMock()
         mock_stack_class.return_value = mock_stack
+        mock_launcher = MagicMock()
+        mock_launcher_class.return_value = mock_launcher
 
         payload = {"node": [{"name": "talker", "pkg": "demo_nodes_cpp", "exec": "talker"}]}
         context = self._create_context(payload, StackOperation.START)
 
-        result = self.handler._start_ditto(context)
+        result = self.handler._start_ditto(context, self.mock_plugin)
 
         self.assertTrue(result)
         mock_stack_class.assert_called_once_with(manifest=payload)
-        mock_stack.launch.assert_called_once_with(context.launcher)
+        mock_stack.launch.assert_called_once_with(mock_launcher)
 
+    @patch("muto_composer.stack_handlers.ditto_handler.Ros2LaunchParent")
     @patch("muto_composer.stack_handlers.ditto_handler.Stack")
-    def test_start_ditto_with_nested_launch_structure(self, mock_stack_class):
+    def test_start_ditto_with_nested_launch_structure(self, mock_stack_class, mock_launcher_class):
         """Test that _start_ditto handles nested launch structure."""
         mock_stack = MagicMock()
         mock_stack_class.return_value = mock_stack
+        mock_launcher = MagicMock()
+        mock_launcher_class.return_value = mock_launcher
 
         launch_data = {"node": [{"name": "test", "pkg": "pkg", "exec": "exec"}]}
         payload = {"launch": launch_data}
         context = self._create_context(payload, StackOperation.START)
 
-        result = self.handler._start_ditto(context)
+        result = self.handler._start_ditto(context, self.mock_plugin)
 
         self.assertTrue(result)
         mock_stack_class.assert_called_once_with(manifest=launch_data)
         mock_stack.launch.assert_called_once()
 
-    @patch("muto_composer.stack_handlers.ditto_handler.Stack")
-    def test_kill_ditto_instantiates_stack_and_kills(self, mock_stack_class):
-        """Test that _kill_ditto creates Stack and calls kill()."""
-        mock_stack = MagicMock()
-        mock_stack_class.return_value = mock_stack
+    def test_kill_ditto_kills_managed_launcher(self):
+        """Test that _kill_ditto kills launcher from managed_launchers."""
+        mock_launcher = MagicMock()
+        self.handler.managed_launchers["testhash"] = mock_launcher
+        self.mock_plugin._managed_launchers["testhash"] = mock_launcher
 
         payload = {"node": [{"name": "talker", "pkg": "demo_nodes_cpp", "exec": "talker"}]}
         context = self._create_context(payload, StackOperation.KILL)
 
-        result = self.handler._kill_ditto(context)
+        result = self.handler._kill_ditto(context, self.mock_plugin)
 
         self.assertTrue(result)
-        mock_stack_class.assert_called_once_with(manifest=payload)
-        mock_stack.kill.assert_called_once()
+        mock_launcher.kill.assert_called_once()
+        self.assertNotIn("testhash", self.handler.managed_launchers)
 
+    @patch("muto_composer.stack_handlers.ditto_handler.Ros2LaunchParent")
     @patch("muto_composer.stack_handlers.ditto_handler.Stack")
-    def test_apply_ditto_instantiates_stack_and_applies(self, mock_stack_class):
+    def test_apply_ditto_instantiates_stack_and_applies(self, mock_stack_class, mock_launcher_class):
         """Test that _apply_ditto creates Stack and calls apply()."""
         mock_stack = MagicMock()
         mock_stack_class.return_value = mock_stack
+        mock_launcher = MagicMock()
+        mock_launcher_class.return_value = mock_launcher
 
         payload = {"node": [{"name": "talker", "pkg": "demo_nodes_cpp", "exec": "talker"}]}
         context = self._create_context(payload, StackOperation.APPLY)
 
-        result = self.handler._apply_ditto(context)
+        result = self.handler._apply_ditto(context, self.mock_plugin)
 
         self.assertTrue(result)
         mock_stack_class.assert_called_once_with(manifest=payload)
-        mock_stack.apply.assert_called_once_with(context.launcher)
+        mock_stack.apply.assert_called_once_with(mock_launcher)
 
     def test_start_script_based_ditto_delegates_to_plugin(self):
         """Test that script-based stacks are delegated (not using Stack model)."""
         payload = {"on_start": "/opt/muto/start.sh", "on_kill": "/opt/muto/stop.sh"}
         context = self._create_context(payload, StackOperation.START)
 
-        result = self.handler._start_ditto(context)
+        result = self.handler._start_ditto(context, self.mock_plugin)
 
         # Script-based stacks return True but don't use Stack model
         self.assertTrue(result)
 
-    def test_kill_script_based_ditto_delegates_to_plugin(self):
-        """Test that script-based stack kill is delegated."""
+    def test_kill_ditto_no_launcher_still_succeeds(self):
+        """Test that kill with no managed launcher still returns True."""
         payload = {"on_start": "/opt/muto/start.sh", "on_kill": "/opt/muto/stop.sh"}
         context = self._create_context(payload, StackOperation.KILL)
 
-        result = self.handler._kill_ditto(context)
+        result = self.handler._kill_ditto(context, self.mock_plugin)
 
         self.assertTrue(result)
 
@@ -188,7 +199,7 @@ class TestDittoStackHandlerStackModelIntegration(unittest.TestCase):
         payload = {"on_start": "/opt/muto/start.sh", "on_kill": "/opt/muto/stop.sh"}
         context = self._create_context(payload, StackOperation.APPLY)
 
-        result = self.handler._apply_ditto(context)
+        result = self.handler._apply_ditto(context, self.mock_plugin)
 
         # Apply returns True but does nothing
         self.assertTrue(result)
@@ -242,11 +253,11 @@ class TestDittoStackHandlerApplyToPlugin(unittest.TestCase):
         self.assertTrue(result)
         mock_stack.launch.assert_called_once()
 
-    @patch("muto_composer.stack_handlers.ditto_handler.Stack")
-    def test_kill_operation_delegates_to_kill_ditto(self, mock_stack_class):
-        """Test that KILL operation calls _kill_ditto."""
-        mock_stack = MagicMock()
-        mock_stack_class.return_value = mock_stack
+    def test_kill_operation_delegates_to_kill_ditto(self):
+        """Test that KILL operation calls _kill_ditto and kills managed launcher."""
+        mock_launcher = MagicMock()
+        self.handler.managed_launchers["testhash"] = mock_launcher
+        self.mock_plugin._managed_launchers = {"testhash": mock_launcher}
 
         payload = {"node": [{"name": "test", "pkg": "pkg", "exec": "exec"}]}
         context = self._create_context(payload, StackOperation.KILL)
@@ -256,7 +267,7 @@ class TestDittoStackHandlerApplyToPlugin(unittest.TestCase):
         )
 
         self.assertTrue(result)
-        mock_stack.kill.assert_called_once()
+        mock_launcher.kill.assert_called_once()
 
     @patch("muto_composer.stack_handlers.ditto_handler.Stack")
     def test_apply_operation_delegates_to_apply_ditto(self, mock_stack_class):
@@ -274,15 +285,15 @@ class TestDittoStackHandlerApplyToPlugin(unittest.TestCase):
         self.assertTrue(result)
         mock_stack.apply.assert_called_once()
 
-    def test_compose_operation_returns_false(self):
-        """Test that COMPOSE operation is not supported for ditto handler."""
+    def test_compose_operation_returns_true(self):
+        """Test that COMPOSE operation passes through for ditto handler."""
         context = self._create_context({}, StackOperation.COMPOSE)
 
         result = self.handler.apply_to_plugin(
             self.mock_plugin, context, self.mock_request, self.mock_response
         )
 
-        self.assertFalse(result)
+        self.assertTrue(result)
 
 
 class TestDittoStackHandlerErrorHandling(unittest.TestCase):
@@ -290,6 +301,8 @@ class TestDittoStackHandlerErrorHandling(unittest.TestCase):
 
     def setUp(self):
         self.handler = DittoStackHandler(logger=MagicMock())
+        self.mock_plugin = MagicMock()
+        self.mock_plugin._managed_launchers = {}
 
     def _create_context(self, stack_data, operation):
         return StackContext(
@@ -303,41 +316,45 @@ class TestDittoStackHandlerErrorHandling(unittest.TestCase):
             hash="testhash",
         )
 
+    @patch("muto_composer.stack_handlers.ditto_handler.Ros2LaunchParent")
     @patch("muto_composer.stack_handlers.ditto_handler.Stack")
-    def test_start_handles_stack_exception(self, mock_stack_class):
+    def test_start_handles_stack_exception(self, mock_stack_class, mock_launcher_class):
         """Test that exceptions during start are handled gracefully."""
         mock_stack_class.side_effect = Exception("Stack creation failed")
 
         payload = {"node": [{"name": "test", "pkg": "pkg", "exec": "exec"}]}
         context = self._create_context(payload, StackOperation.START)
 
-        result = self.handler._start_ditto(context)
+        result = self.handler._start_ditto(context, self.mock_plugin)
 
         self.assertFalse(result)
         self.handler.logger.error.assert_called()
 
-    @patch("muto_composer.stack_handlers.ditto_handler.Stack")
-    def test_kill_handles_stack_exception(self, mock_stack_class):
+    def test_kill_handles_launcher_exception(self):
         """Test that exceptions during kill are handled gracefully."""
-        mock_stack_class.side_effect = Exception("Stack creation failed")
+        mock_launcher = MagicMock()
+        mock_launcher.kill.side_effect = Exception("Kill failed")
+        self.handler.managed_launchers["testhash"] = mock_launcher
+        self.mock_plugin._managed_launchers["testhash"] = mock_launcher
 
         payload = {"node": [{"name": "test", "pkg": "pkg", "exec": "exec"}]}
         context = self._create_context(payload, StackOperation.KILL)
 
-        result = self.handler._kill_ditto(context)
+        result = self.handler._kill_ditto(context, self.mock_plugin)
 
         self.assertFalse(result)
         self.handler.logger.error.assert_called()
 
+    @patch("muto_composer.stack_handlers.ditto_handler.Ros2LaunchParent")
     @patch("muto_composer.stack_handlers.ditto_handler.Stack")
-    def test_apply_handles_stack_exception(self, mock_stack_class):
+    def test_apply_handles_stack_exception(self, mock_stack_class, mock_launcher_class):
         """Test that exceptions during apply are handled gracefully."""
         mock_stack_class.side_effect = Exception("Stack creation failed")
 
         payload = {"node": [{"name": "test", "pkg": "pkg", "exec": "exec"}]}
         context = self._create_context(payload, StackOperation.APPLY)
 
-        result = self.handler._apply_ditto(context)
+        result = self.handler._apply_ditto(context, self.mock_plugin)
 
         self.assertFalse(result)
         self.handler.logger.error.assert_called()
@@ -347,7 +364,7 @@ class TestDittoStackHandlerErrorHandling(unittest.TestCase):
         payload = {"unknown_field": "value"}
         context = self._create_context(payload, StackOperation.START)
 
-        result = self.handler._start_ditto(context)
+        result = self.handler._start_ditto(context, self.mock_plugin)
 
         self.assertFalse(result)
 

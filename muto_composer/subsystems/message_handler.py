@@ -39,12 +39,15 @@ class MessageRouter:
             payload = json.loads(action.payload) if action.payload.strip() else {}
             stack_name = self._extract_stack_name(payload, f"unknown:{action.method}")
 
+            # Unwrap Ditto protocol envelope: the actual stack manifest is in "value"
+            stack_payload = payload.get("value", payload) if "path" in payload else payload
+
             event = StackRequestEvent(
                 event_type=EventType.STACK_REQUEST,
                 source_component="message_router",
                 stack_name=stack_name,
                 action=action.method,
-                stack_payload=payload,
+                stack_payload=stack_payload,
             )
 
             if self.logger:
@@ -132,7 +135,6 @@ class MessageHandler:
     def _muto_action_callback(self, msg: MutoAction):
         """Callback for MutoAction messages."""
         try:
-            self.logger.info(f"Received MutoAction: {msg.method}")
             self.router.route_muto_action(msg)
         except Exception as e:
             self.logger.error(f"Error in MutoAction callback: {e}")
