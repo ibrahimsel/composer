@@ -160,18 +160,6 @@ class TestStack(unittest.TestCase):
         self.assertEqual(flat_composables[0].name, "test_container")
         self.assertEqual(len(flat_composables[0].nodes), 1)
 
-    def test_compare_ros_params(self):
-        params1 = [{"param1": "value1"}, {"param2": "value2"}]
-        params2 = [{"param1": "new_value1"}, {"param3": "value3"}]
-
-        differences = Stack.compare_ros_params(params1, params2)
-
-        self.assertEqual(len(differences), 3)
-        param_names = {diff["key"] for diff in differences}
-        self.assertIn("param1", param_names)
-        self.assertIn("param2", param_names)
-        self.assertIn("param3", param_names)
-
     def test_merge(self):
         stack1 = Stack(manifest=self.sample_manifest)
 
@@ -259,35 +247,6 @@ class TestStack(unittest.TestCase):
         param_names = {p.name for p in merged.param}
         self.assertIn("param1", param_names)
         self.assertIn("new_param", param_names)
-
-    @patch("muto_composer.model.stack.rclpy")
-    def test_get_active_nodes(self, mock_rclpy):
-        mock_node = MagicMock()
-        mock_node.get_node_names_and_namespaces.return_value = [
-            ("/ns", "node1"),
-            ("/", "node2"),
-        ]
-        mock_rclpy.create_node.return_value = mock_node
-
-        stack = Stack(manifest=self.sample_manifest)
-        active_nodes = stack.get_active_nodes()
-
-        self.assertEqual(len(active_nodes), 2)
-        self.assertIn(("/ns", "node1"), active_nodes)
-        self.assertIn(("/", "node2"), active_nodes)
-        mock_rclpy.create_node.assert_called_once_with("get_active_nodes", enable_rosout=False)
-        mock_node.destroy_node.assert_called_once()
-
-    @patch("muto_composer.model.stack.Introspector")
-    def test_kill_all(self, mock_introspector):
-        mock_launcher = MagicMock()
-        mock_launcher._active_nodes = [{"node1": 1234}, {"node2": 5678}]
-
-        stack = Stack(manifest=self.sample_manifest)
-        stack.kill_all(mock_launcher)
-
-        mock_introspector.return_value.kill.assert_any_call("node1", 1234)
-        mock_introspector.return_value.kill.assert_any_call("node2", 5678)
 
     @patch("muto_composer.model.stack.Introspector")
     def test_kill_diff(self, mock_introspector):

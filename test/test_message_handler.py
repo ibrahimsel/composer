@@ -130,9 +130,8 @@ class TestMessageHandler(unittest.TestCase):
         )
 
         self.event_bus = EventBus()
-        self.logger = MagicMock()
 
-        self.message_handler = MessageHandler(self.mock_node, self.event_bus, self.logger)
+        self.message_handler = MessageHandler(self.mock_node, self.event_bus)
 
     def tearDown(self):
         with contextlib.suppress(BaseException):
@@ -142,7 +141,6 @@ class TestMessageHandler(unittest.TestCase):
         """Test MessageHandler initialization."""
         self.assertIsNotNone(self.message_handler.router)
         self.assertIsNotNone(self.message_handler.publisher_manager)
-        self.assertIsNotNone(self.message_handler.service_client_manager)
 
     def test_handle_muto_action(self):
         """Test handling MutoAction message."""
@@ -172,11 +170,9 @@ class TestMessageHandler(unittest.TestCase):
         """Test getting individual components."""
         router = self.message_handler.get_router()
         publisher_manager = self.message_handler.get_publisher_manager()
-        service_client_manager = self.message_handler.get_service_client_manager()
 
         self.assertIsNotNone(router)
         self.assertIsNotNone(publisher_manager)
-        self.assertIsNotNone(service_client_manager)
 
     def test_integration_with_composer_flow(self):
         """Test integration with overall composer flow."""

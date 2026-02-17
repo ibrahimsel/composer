@@ -127,10 +127,6 @@ class ComposerWatchdog(Node):
             callback_group=self._callback_group,
         )
 
-        # Create service clients for each monitored service
-        self._service_clients: dict[str, Any] = {}
-        self._init_service_clients()
-
         # Create periodic health check timer
         self._check_timer = self.create_timer(
             self.check_interval_sec,
@@ -142,12 +138,6 @@ class ComposerWatchdog(Node):
             f"ComposerWatchdog initialized. Checking {len(self.SERVICES_TO_MONITOR)} "
             f"services every {check_interval_sec}s"
         )
-
-    def _init_service_clients(self) -> None:
-        """Initialize ROS2 service clients for health probing."""
-        # We only need to check service availability, not call them
-        # So we just track which services exist
-        pass
 
     def _check_service_availability(self, service_name: str) -> bool:
         """Check if a ROS2 service is available."""

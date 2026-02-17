@@ -19,7 +19,7 @@ import subprocess
 import rclpy
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch_ros.actions import ComposableNodeContainer, LoadComposableNodes, Node
+from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
 
 import muto_composer.model.composable as composable
@@ -154,61 +154,6 @@ class Stack:
         except Exception as e:
             logger.error(f"Exception occured in flatten_composable: {e}")
 
-    def calculate_ros_params_differences(self, current, other):
-        """Calculate differences in ROS parameters between nodes of the current stack and another stack.
-
-        Args:
-            current (Stack): The current stack object.
-            other (Stack): The other stack object.
-
-        Returns:
-            dict: A dictionary containing differences in ROS parameters.
-        """
-        differences = {}
-        for node_i in current.node:
-            for node_j in other.node:
-                if node_i.exec == node_j.exec and node_i.pkg == node_j.pkg:
-                    diff = self.compare_ros_params(node_i.ros_params, node_j.ros_params)
-                    if diff:
-                        differences[(node_i.name, node_j.name)] = diff
-        return differences
-
-    @staticmethod
-    def compare_ros_params(params1, params2):
-        """Compare ROS parameters between two sets of parameters.
-
-        Args:
-            params1 (list): First set of ROS parameters.
-            params2 (list): Second set of ROS parameters.
-
-        Returns:
-            list: A list containing the differences between the two sets of parameters.
-        """
-        diff = []
-
-        def params_to_flat_dict(params):
-            flat_dict = {}
-            for p in params:
-                if isinstance(p, dict):
-                    for key in p:
-                        flat_dict[key] = p.get(key)
-            return flat_dict
-
-        dict_params1 = params_to_flat_dict(params1)
-        dict_params2 = params_to_flat_dict(params2)
-
-        all_keys = set(dict_params1).union(set(dict_params2))
-
-        for key in all_keys:
-            val1 = dict_params1.get(key, None)
-            val2 = dict_params2.get(key, None)
-
-            if val1 != val2:
-                diff_entry = {"key": key, "in_node1": val1, "in_node2": val2}
-                diff.append(diff_entry)
-
-        return diff
-
     def merge(self, other):
         """Merge the current stack with another stack.
 
@@ -301,28 +246,6 @@ class Stack:
         for pn, pv in other_params.items():
             merged.param.append(param.Param(self, {"name": pn, "value": pv}))
         merged.arg = other.arg
-
-    def get_active_nodes(self):
-        """Get a list of active nodes.
-
-        Returns:
-            list: A list of active nodes.
-        """
-        n = rclpy.create_node("get_active_nodes", enable_rosout=False)
-        n_list = n.get_node_names_and_namespaces()
-        n.destroy_node()
-        return n_list
-
-    def kill_all(self, launcher):
-        """Kill all active nodes which were launched by Muto.
-
-        Args:
-            launcher (object): The launcher object.
-        """
-        intrspc = Introspector()
-        for n in launcher._active_nodes:
-            for name, pid in n.items():
-                intrspc.kill(name, pid)
 
     def kill_diff(self, launcher, stack):
         """When apply pipeline runs, kill the difference between two stacks.
@@ -431,24 +354,6 @@ class Stack:
         should_node_run = f"{node.namespace}/{node.name}" not in active_nodes
         return should_node_run
 
-    def load_common_composables(self, container, launch_description: LaunchDescription):
-        """If there are common containers in stack composables, load them onto the existing container
-        Args:
-            container (object): The container object
-        """
-        node_desc = []
-        for cn in container.nodes:
-            if cn.action == LOADACTION:
-                logger.debug(f"LOADING {cn.namespace}/{cn.name}")
-                node_desc.append(ComposableNode(package=cn.pkg, name=cn.name, namespace=cn.namespace, plugin=cn.plugin))
-
-        if node_desc:
-            load_action = LoadComposableNodes(
-                target_container=f"{container.namespace}/{container.name}",
-                composable_node_descriptions=[node_desc],
-            )
-            launch_description.add_action(load_action)
-
     def handle_composable_nodes(self, composable_containers, launch_description, launcher):
         """Handle composable nodes during stack launching.
 
@@ -480,8 +385,6 @@ class Stack:
                     composable_node_descriptions=node_desc,
                 )
                 launch_description.add_action(container)
-
-            # self.load_common_composables(c, launch_description)
 
     def handle_regular_nodes(self, nodes, launch_description, launcher):
         """Handle regular nodes during stack launching.

@@ -16,7 +16,7 @@ import os
 
 import rclpy
 from lifecycle_msgs.msg import Transition
-from lifecycle_msgs.srv import ChangeState, GetAvailableStates, GetState
+from lifecycle_msgs.srv import ChangeState
 
 import muto_composer.model.param as param
 
@@ -94,38 +94,6 @@ class Node:
                 future = state_cli.call_async(request)
                 rclpy.spin_until_future_complete(temporary_node, future, timeout_sec=3.0)
             temporary_node.destroy_node()
-        else:
-            logger.warning(f"{self.name} is Not a managed node")
-
-    def get_state(self):
-        if self.lifecycle:
-            temporary_node = rclpy.create_node("get_state_node")
-            state_cli = temporary_node.create_client(GetState, f"/{self.namespace}/{self.name}/get_state")
-            while not state_cli.wait_for_service(timeout_sec=1.0):
-                temporary_node.get_logger().warn("Lifecycle get state service not available. Waiting...")
-            request = GetState.Request()
-            future = state_cli.call_async(request)
-            rclpy.spin_until_future_complete(temporary_node, future, timeout_sec=3.0)
-            temporary_node.destroy_node()
-            return future.result()
-        else:
-            logger.warning(f"{self.name} is Not a managed node")
-
-    def get_available_states(self):
-        if self.lifecycle:
-            temporary_node = rclpy.create_node("get_available_states_node")
-            state_cli = temporary_node.create_client(
-                GetAvailableStates, f"/{self.namespace}/{self.name}/get_available_states"
-            )
-            while not state_cli.wait_for_service(timeout_sec=1.0):
-                temporary_node.get_logger().warn("Lifecycle get_available_states service not available. Waiting...")
-            request = GetAvailableStates.Request()
-            response = GetAvailableStates.Response()
-            future = state_cli.call_async(request)
-            rclpy.spin_until_future_complete(temporary_node, future, timeout_sec=3.0)
-            response = future.result()
-            temporary_node.destroy_node()
-            return response.available_states
         else:
             logger.warning(f"{self.name} is Not a managed node")
 

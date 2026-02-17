@@ -47,8 +47,8 @@ class TestStackAnalyzedProcessing(unittest.TestCase):
             mock_merge.assert_called_once_with({}, {"test": "original"})
 
             # Verify processed event was published
-            self.event_bus.publish_async.assert_called_once()
-            published_event = self.event_bus.publish_async.call_args[0][0]
+            self.event_bus.publish_sync.assert_called_once()
+            published_event = self.event_bus.publish_sync.call_args[0][0]
 
             # Verify the published event is correct
             self.assertIsInstance(published_event, StackProcessedEvent)
@@ -81,8 +81,8 @@ class TestStackAnalyzedProcessing(unittest.TestCase):
             mock_resolve.assert_called_once_with('{"command": "$(env HOME)/test"}')
 
             # Verify processed event was published
-            self.event_bus.publish_async.assert_called_once()
-            published_event = self.event_bus.publish_async.call_args[0][0]
+            self.event_bus.publish_sync.assert_called_once()
+            published_event = self.event_bus.publish_sync.call_args[0][0]
 
             # Verify the published event is correct
             self.assertIsInstance(published_event, StackProcessedEvent)
@@ -124,8 +124,8 @@ class TestStackAnalyzedProcessing(unittest.TestCase):
             mock_resolve.assert_called_once_with('{"command": "$(env HOME)/test", "merged": true}')
 
             # Verify processed event was published
-            self.event_bus.publish_async.assert_called_once()
-            published_event = self.event_bus.publish_async.call_args[0][0]
+            self.event_bus.publish_sync.assert_called_once()
+            published_event = self.event_bus.publish_sync.call_args[0][0]
 
             # Verify the published event has both processing results
             self.assertIsInstance(published_event, StackProcessedEvent)
@@ -153,7 +153,7 @@ class TestStackAnalyzedProcessing(unittest.TestCase):
         self.processor.handle_stack_analyzed(test_event)
 
         # Verify no processing event was published
-        self.event_bus.publish_async.assert_not_called()
+        self.event_bus.publish_sync.assert_not_called()
 
 
 if __name__ == "__main__":
