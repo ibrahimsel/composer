@@ -20,7 +20,6 @@ import json
 from typing import Any
 
 from muto_msgs.msg import MutoAction
-from muto_msgs.srv import CoreTwin
 from rclpy.node import Node
 from std_msgs.msg import String
 
@@ -37,7 +36,7 @@ class MessageRouter:
     def route_muto_action(self, action: MutoAction) -> None:
         """Route MutoAction to orchestration manager via events."""
         try:
-            payload = json.loads(action.payload)
+            payload = json.loads(action.payload) if action.payload.strip() else {}
             stack_name = self._extract_stack_name(payload, f"unknown:{action.method}")
 
             event = StackRequestEvent(
@@ -103,61 +102,10 @@ class PublisherManager:
             self.logger.error(f"Error publishing stack state: {e}")
 
 
-class ServiceClientManager:
-    """Manages service client connections and calls."""
-
-    def __init__(self, node: Node, core_twin_node_name: str = "core_twin"):
-        self.node = node
-        self.logger = node.get_logger()
-
-        # Initialize service clients
-        self.get_stack_client = node.create_client(CoreTwin, f"{core_twin_node_name}/get_stack_definition")
-        self.set_stack_client = node.create_client(CoreTwin, f"{core_twin_node_name}/set_current_stack")
-
-    async def get_stack_definition(self, stack_id: str) -> dict[str, Any] | None:
-        """Retrieve stack definition from twin service."""
-        try:
-            request = CoreTwin.Request()
-            request.input = stack_id
-
-            if not self.get_stack_client.wait_for_service(timeout_sec=5.0):
-                self.logger.error("CoreTwin get_stack_definition service not available")
-                return None
-
-            self.get_stack_client.call_async(request)
-            # Note: In real implementation, this would be properly awaited
-            # For now, we'll use the existing callback pattern
-
-            return {}  # Placeholder
-
-        except Exception as e:
-            self.logger.error(f"Error calling get_stack_definition: {e}")
-            return None
-
-    async def set_current_stack(self, stack_id: str) -> bool:
-        """Update current stack in twin service."""
-        try:
-            request = CoreTwin.Request()
-            request.input = stack_id
-
-            if not self.set_stack_client.wait_for_service(timeout_sec=5.0):
-                self.logger.error("CoreTwin set_current_stack service not available")
-                return False
-
-            self.set_stack_client.call_async(request)
-            # Note: In real implementation, this would be properly awaited
-
-            return True  # Placeholder
-
-        except Exception as e:
-            self.logger.error(f"Error calling set_current_stack: {e}")
-            return False
-
-
 class MessageHandler:
     """Main message handling subsystem coordinator."""
 
-    def __init__(self, node: Node, event_bus: EventBus, core_twin_node_name: str = "core_twin"):
+    def __init__(self, node: Node, event_bus: EventBus):
         self.node = node
         self.event_bus = event_bus
         self.logger = node.get_logger()
@@ -165,9 +113,6 @@ class MessageHandler:
         # Initialize components
         self.router = MessageRouter(event_bus, self.logger)
         self.publisher_manager = PublisherManager(node)
-        self.service_manager = ServiceClientManager(node, core_twin_node_name)
-        # Add alias for compatibility
-        self.service_client_manager = self.service_manager
 
         # Set up subscribers
         self._setup_subscribers()
@@ -196,10 +141,6 @@ class MessageHandler:
         """Publish stack state through publisher manager."""
         self.publisher_manager.publish_stack_state(stack_data, state_type)
 
-    def get_service_manager(self) -> ServiceClientManager:
-        """Get service client manager for external use."""
-        return self.service_manager
-
     def handle_muto_action(self, muto_action: MutoAction):
         """Handle MutoAction message."""
         self.router.route_muto_action(muto_action)
@@ -211,7 +152,3 @@ class MessageHandler:
     def get_publisher_manager(self) -> PublisherManager:
         """Get publisher manager."""
         return self.publisher_manager
-
-    def get_service_client_manager(self) -> ServiceClientManager:
-        """Get service client manager (alias for compatibility)."""
-        return self.service_manager

@@ -398,7 +398,7 @@ class StackProcessor:
                     original_payload=stack_payload,
                     processing_applied=list(processing_requirements.keys()),
                 )
-                self.event_bus.publish_async(processed_event)
+                self.event_bus.publish_sync(processed_event)
 
                 if self.logger:
                     self.logger.info(

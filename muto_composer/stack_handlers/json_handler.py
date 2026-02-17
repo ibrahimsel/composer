@@ -81,27 +81,20 @@ class JsonStackHandler(StackTypeHandler):
         stack = Stack(manifest=launch_data)
         stack.launch(launcher)
         self.managed_launchers[context.hash] = launcher
+        plugin._managed_launchers[context.hash] = launcher
         return True
 
     def _kill_json(self, context: StackContext, plugin: BasePlugin) -> bool:
 
-        # JSON stacks support launch operations
-        # For stack/json, the launch data is inside the manifest
-        # launch_data = context.stack_data.get("launch")
-        # if not launch_data:
-        #    self.logger.error("No 'launch' section found in stack/json manifest")
-        #    return False
-        # stack = Stack(manifest=launch_data)
         launcher = self.managed_launchers.get(context.hash, None)
         if launcher:
             launcher.kill()
             self.managed_launchers.pop(context.hash, None)
+            plugin._managed_launchers.pop(context.hash, None)
         return True
 
     def _apply_json(self, context: StackContext, plugin: BasePlugin) -> bool:
 
-        # JSON stacks support launch operations
-        # For stack/json, the launch data is inside the manifest
         self._kill_json(context, plugin)
 
         launcher = Ros2LaunchParent([])
@@ -112,4 +105,5 @@ class JsonStackHandler(StackTypeHandler):
         stack = Stack(manifest=launch_data)
         stack.apply(launcher)
         self.managed_launchers[context.hash] = launcher
+        plugin._managed_launchers[context.hash] = launcher
         return True

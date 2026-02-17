@@ -56,8 +56,10 @@ class MutoDefaultComposePlugin(BasePlugin):
                 try:
                     stack_data = json.loads(request.input.current.stack)
                     # Kill actions have stackId in value key or at top level, not a full manifest
-                    if stack_data.get("value", {}).get("stackId") or (
-                        stack_data.get("path", "").endswith("/kill") and not stack_data.get("launch")
+                    if (
+                        stack_data.get("value", {}).get("stackId")
+                        or (stack_data.get("path", "").endswith("/kill") and not stack_data.get("launch"))
+                        or (stack_data.get("stackId") and not stack_data.get("launch"))
                     ):
                         is_kill_action = True
                 except json.JSONDecodeError:
