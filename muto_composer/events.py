@@ -548,6 +548,32 @@ class ProcessCrashedEvent(BaseComposeEvent):
         self.process_output = process_output
 
 
+class GraphStateUpdatedEvent(BaseComposeEvent):
+    """Event triggered when the desired graph state is updated."""
+
+    def __init__(
+        self,
+        event_type: EventType = None,
+        source_component: str = "graph_reconciliation",
+        stack_name: str = "",
+        stack_id: str = "",
+        stack_version: str = "",
+        desired_nodes: list[dict[str, Any]] | None = None,
+        status: str = "",
+        **kwargs,
+    ):
+        super().__init__(
+            event_type=event_type or EventType.GRAPH_STATE_UPDATED,
+            source_component=source_component,
+            stack_name=stack_name,
+            **kwargs,
+        )
+        self.stack_id = stack_id
+        self.stack_version = stack_version
+        self.desired_nodes = desired_nodes or []
+        self.status = status
+
+
 class GraphDriftDetectedEvent(BaseComposeEvent):
     """Event triggered when graph drift is detected by the Daemon."""
 
@@ -594,44 +620,6 @@ class ReconciliationActionEvent(BaseComposeEvent):
         self.criticality = criticality
         self.success = success
         self.details = details
-
-
-class PipelineEvents:
-    """Factory class for creating pipeline-related events."""
-
-    @staticmethod
-    def create_start_event(pipeline_name: str, context: dict[str, Any] | None = None):
-        """Create a pipeline start event."""
-        return PipelineStartedEvent(
-            event_type=EventType.PIPELINE_START,
-            source_component="pipeline_engine",
-            pipeline_name=pipeline_name,
-            execution_id=str(uuid.uuid4()),
-            metadata=context or {},
-        )
-
-    @staticmethod
-    def create_completion_event(pipeline_name: str, success: bool = True, result: dict[str, Any] | None = None):
-        """Create a pipeline completion event."""
-        return PipelineCompletedEvent(
-            event_type=EventType.PIPELINE_COMPLETE,
-            source_component="pipeline_engine",
-            pipeline_name=pipeline_name,
-            execution_id=str(uuid.uuid4()),
-            final_result=result or {"success": success},
-        )
-
-    @staticmethod
-    def create_error_event(pipeline_name: str, error: str, context: dict[str, Any] | None = None):
-        """Create a pipeline error event."""
-        return PipelineFailedEvent(
-            event_type=EventType.PIPELINE_ERROR,
-            source_component="pipeline_engine",
-            pipeline_name=pipeline_name,
-            execution_id=str(uuid.uuid4()),
-            failure_step="unknown",
-            error_details={"error": error, "context": context or {}},
-        )
 
 
 class EventBus:

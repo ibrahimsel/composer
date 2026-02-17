@@ -13,9 +13,15 @@
 
 import asyncio
 import unittest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from muto_composer.events import EventBus, EventType, StackProcessedEvent, TwinUpdateEvent
+from muto_composer.events import (
+    EventBus,
+    EventType,
+    GraphStateUpdatedEvent,
+    StackProcessedEvent,
+    TwinUpdateEvent,
+)
 from muto_composer.subsystems.digital_twin_integration import (
     DigitalTwinIntegration,
     TwinServiceClient,
@@ -311,15 +317,133 @@ class TestDigitalTwinIntegration(unittest.TestCase):
         self.assertIsNotNone(self.integration.logger)
 
 
-if __name__ == "__main__":
-    # For async tests, we need to run them properly
-    def run_async_test(coro):
-        """Helper to run async tests."""
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            loop.run_until_complete(coro)
-        finally:
-            loop.close()
+class TestTwinGraphSync(unittest.TestCase):
+    """Tests for graph state synchronization to digital twin."""
 
+    def setUp(self):
+        self.event_bus = EventBus()
+        self.logger = MagicMock()
+        self.mock_twin_client = MagicMock()
+        self.synchronizer = TwinSynchronizer(
+            self.event_bus, self.mock_twin_client, self.logger
+        )
+
+    def test_graph_state_synced_to_twin(self):
+        """GRAPH_STATE_UPDATED event triggers twin sync with graph data."""
+        event = GraphStateUpdatedEvent(
+            stack_name="test-stack",
+            stack_id="org.test:stack",
+            stack_version="1.0.0",
+            desired_nodes=[
+                {"fqn": "/demo/talker", "pkg": "demo_nodes_cpp", "exe": "talker"},
+                {"fqn": "/demo/listener", "pkg": "demo_nodes_cpp", "exe": "listener"},
+            ],
+            status="converged",
+        )
+
+        self.event_bus.publish_sync(event)
+
+        self.assertIsNotNone(self.synchronizer.latest_graph_state)
+        state = self.synchronizer.latest_graph_state
+        self.assertEqual(state["stack_name"], "test-stack")
+        self.assertEqual(state["stack_id"], "org.test:stack")
+        self.assertEqual(state["stack_version"], "1.0.0")
+        self.assertEqual(state["status"], "converged")
+        self.assertEqual(len(state["desired_nodes"]), 2)
+
+    def test_graph_feature_registered(self):
+        """GRAPH_STATE_UPDATED event registers 'graph' as a twin feature."""
+        event = GraphStateUpdatedEvent(
+            stack_name="feature-test",
+            desired_nodes=[{"fqn": "/node_a"}],
+            status="converged",
+        )
+
+        self.assertNotIn("graph", self.synchronizer.registered_features)
+
+        self.event_bus.publish_sync(event)
+
+        self.assertIn("graph", self.synchronizer.registered_features)
+
+    def test_graph_sync_updates_on_each_event(self):
+        """Each GRAPH_STATE_UPDATED replaces the previous graph state."""
+        event_v1 = GraphStateUpdatedEvent(
+            stack_name="stack-v1",
+            stack_version="1.0.0",
+            desired_nodes=[{"fqn": "/node_a"}],
+            status="converged",
+        )
+        event_v2 = GraphStateUpdatedEvent(
+            stack_name="stack-v2",
+            stack_version="2.0.0",
+            desired_nodes=[{"fqn": "/node_b"}, {"fqn": "/node_c"}],
+            status="converged",
+        )
+
+        self.event_bus.publish_sync(event_v1)
+        self.assertEqual(self.synchronizer.latest_graph_state["stack_name"], "stack-v1")
+
+        self.event_bus.publish_sync(event_v2)
+        self.assertEqual(self.synchronizer.latest_graph_state["stack_name"], "stack-v2")
+        self.assertEqual(len(self.synchronizer.latest_graph_state["desired_nodes"]), 2)
+
+    def test_graph_sync_error_handled_gracefully(self):
+        """Errors in graph sync are logged, not propagated."""
+        self.synchronizer.sync_graph_state_to_twin = MagicMock(
+            side_effect=Exception("Ditto unavailable")
+        )
+
+        event = GraphStateUpdatedEvent(
+            stack_name="error-test",
+            desired_nodes=[],
+            status="converged",
+        )
+
+        # Should not raise
+        self.event_bus.publish_sync(event)
+        self.logger.error.assert_called()
+
+    @patch("muto_composer.subsystems.digital_twin_integration.requests.put")
+    def test_graph_sync_puts_to_ditto(self, mock_put):
+        """When twin params are configured, PUT graph data to Ditto."""
+        mock_put.return_value = MagicMock(status_code=204, text="")
+
+        # Manually configure twin params (normally read from ROS node)
+        self.synchronizer._twin_url = "http://ditto:ditto@sandbox.composiv.ai"
+        self.synchronizer._thing_id = "org.eclipse.muto.sandbox:test-device"
+
+        event = GraphStateUpdatedEvent(
+            stack_name="ditto-test",
+            stack_id="org.test:stack",
+            stack_version="1.0.0",
+            desired_nodes=[{"fqn": "/demo/talker"}],
+            status="converged",
+        )
+
+        self.event_bus.publish_sync(event)
+
+        mock_put.assert_called_once()
+        call_args = mock_put.call_args
+        self.assertIn("/features/graph/properties", call_args[0][0])
+        self.assertIn("org.eclipse.muto.sandbox:test-device", call_args[0][0])
+        self.assertEqual(call_args[1]["json"]["stack_name"], "ditto-test")
+        self.assertEqual(call_args[1]["json"]["status"], "converged")
+
+    @patch("muto_composer.subsystems.digital_twin_integration.requests.put")
+    def test_graph_sync_skips_when_no_twin_config(self, mock_put):
+        """Without twin_url configured, no HTTP call is made."""
+        event = GraphStateUpdatedEvent(
+            stack_name="no-config-test",
+            desired_nodes=[],
+            status="converged",
+        )
+
+        self.event_bus.publish_sync(event)
+
+        mock_put.assert_not_called()
+        # Data still stored locally
+        self.assertIsNotNone(self.synchronizer.latest_graph_state)
+
+
+if __name__ == "__main__":
     unittest.main()

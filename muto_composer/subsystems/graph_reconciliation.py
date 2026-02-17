@@ -32,6 +32,7 @@ from muto_composer.events import (
     EventBus,
     EventType,
     GraphDriftDetectedEvent,
+    GraphStateUpdatedEvent,
     ReconciliationActionEvent,
     StackRequestEvent,
 )
@@ -321,10 +322,12 @@ class GraphReconciliationManager:
             self._active_stack_payload = payload
 
         self._publish_desired_state(paused=False)
-        self._event_bus.publish_sync(BaseComposeEvent(
-            event_type=EventType.GRAPH_STATE_UPDATED,
-            source_component="graph_reconciliation",
+        self._event_bus.publish_sync(GraphStateUpdatedEvent(
             stack_name=stack_name,
+            stack_id=stack_id,
+            stack_version=stack_version,
+            desired_nodes=nodes,
+            status="converged",
         ))
 
     def _try_extract_nodes_from_payload(self, payload: dict | None) -> bool:
@@ -452,10 +455,12 @@ class GraphReconciliationManager:
         self._logger.info(
             f"Stabilization complete: baseline has {len(nodes)} nodes"
         )
-        self._event_bus.publish_sync(BaseComposeEvent(
-            event_type=EventType.GRAPH_STATE_UPDATED,
-            source_component="graph_reconciliation",
+        self._event_bus.publish_sync(GraphStateUpdatedEvent(
             stack_name=stack_name,
+            stack_id=stack_id,
+            stack_version=stack_version,
+            desired_nodes=nodes,
+            status="converged",
         ))
 
     def _probe_actual_nodes(self) -> set[str] | None:

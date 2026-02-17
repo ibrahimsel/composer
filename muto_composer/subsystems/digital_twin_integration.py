@@ -19,6 +19,7 @@ Manages communication with CoreTwin services and digital twin synchronization.
 from typing import Any
 
 import rclpy
+import requests
 from muto_msgs.srv import CoreTwin
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
@@ -26,6 +27,7 @@ from rclpy.node import Node
 from muto_composer.events import (
     EventBus,
     EventType,
+    GraphStateUpdatedEvent,
     OrchestrationStartedEvent,
     StackAnalyzedEvent,
     StackRequestEvent,
@@ -248,16 +250,42 @@ class TwinServiceClient:
 class TwinSynchronizer:
     """Manages digital twin synchronization and state consistency."""
 
-    def __init__(self, event_bus: EventBus, twin_client: TwinServiceClient, logger=None):
+    def __init__(self, event_bus: EventBus, twin_client: TwinServiceClient,
+                 logger=None, node: Node | None = None):
         self.event_bus = event_bus
         self.twin_client = twin_client
         self.logger = logger
+        self.node = node
+
+        # Resolve Ditto connection params from the ROS node
+        self._twin_url = ""
+        self._thing_id = ""
+        if node is not None:
+            try:
+                twin_url = node.get_parameter("twin_url").get_parameter_value().string_value
+                ns = node.get_parameter("namespace").get_parameter_value().string_value
+                name = node.get_parameter("name").get_parameter_value().string_value
+                # Ensure URL has scheme and auth like Core's config
+                if not twin_url.startswith("http"):
+                    twin_url = f"http://{twin_url}"
+                self._twin_url = twin_url
+                self._thing_id = f"{ns}:{name}"
+            except Exception:
+                if self.logger:
+                    self.logger.warning("Twin params not available — graph sync to Ditto disabled")
 
         # Subscribe to events that require synchronization
         self.event_bus.subscribe(EventType.ORCHESTRATION_STARTED, self.handle_orchestration_started)
+        self.event_bus.subscribe(EventType.GRAPH_STATE_UPDATED, self.handle_graph_state_updated)
 
         # Track synchronization state
         self.sync_state: dict[str, dict[str, Any]] = {}
+
+        # Track registered twin features
+        self.registered_features: set[str] = set()
+
+        # Latest graph state for twin sync
+        self.latest_graph_state: dict[str, Any] | None = None
 
         if self.logger:
             self.logger.info("TwinSynchronizer initialized")
@@ -291,6 +319,75 @@ class TwinSynchronizer:
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error handling orchestration started for sync: {e}")
+
+    def handle_graph_state_updated(self, event: GraphStateUpdatedEvent):
+        """Handle graph state updates by syncing to digital twin."""
+        try:
+            graph_feature_data = {
+                "stack_name": event.stack_name or "",
+                "stack_id": event.stack_id,
+                "stack_version": event.stack_version,
+                "status": event.status,
+                "desired_nodes": list(event.desired_nodes),
+                "timestamp": event.timestamp.isoformat(),
+            }
+
+            self.latest_graph_state = graph_feature_data
+            self.registered_features.add("graph")
+
+            twin_id = event.stack_name or "unknown"
+            self.sync_graph_state_to_twin(twin_id, graph_feature_data)
+
+            if self.logger:
+                self.logger.info(
+                    f"Graph state synced to twin for stack: {event.stack_name}"
+                )
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error syncing graph state to twin: {e}")
+
+    def sync_graph_state_to_twin(
+        self, twin_id: str, graph_data: dict[str, Any]
+    ) -> bool:
+        """Sync graph state to the digital twin's ``graph`` feature.
+
+        PUTs to ``/api/2/things/{thing_id}/features/graph/properties``
+        following the same pattern as Core's ``set_current_stack``.
+        """
+        if not self._twin_url or not self._thing_id:
+            if self.logger:
+                self.logger.debug("Twin URL/thing_id not configured — skipping Ditto sync")
+            return False
+
+        url = (
+            f"{self._twin_url}/api/2/things/{self._thing_id}"
+            f"/features/graph/properties"
+        )
+        headers = {"Content-type": "application/json"}
+
+        try:
+            r = requests.put(url, headers=headers, json=graph_data, timeout=5)
+            if r.status_code < 300:
+                if self.logger:
+                    self.logger.debug(
+                        f"Graph feature synced to Ditto ({r.status_code}): "
+                        f"{len(graph_data.get('desired_nodes', []))} nodes"
+                    )
+                return True
+            else:
+                if self.logger:
+                    self.logger.warning(
+                        f"Ditto graph sync returned {r.status_code}: {r.text}"
+                    )
+                return False
+        except requests.exceptions.Timeout:
+            if self.logger:
+                self.logger.warning("Ditto graph sync timed out")
+            return False
+        except requests.exceptions.RequestException as e:
+            if self.logger:
+                self.logger.warning(f"Ditto graph sync failed: {e}")
+            return False
 
     def _sync_for_stack_action(self, event: OrchestrationStartedEvent):
         """Synchronize twin state for stack actions."""
@@ -399,7 +496,7 @@ class DigitalTwinIntegration:
 
         # Initialize components
         self.twin_client = TwinServiceClient(node, event_bus, logger)
-        self.synchronizer = TwinSynchronizer(event_bus, self.twin_client, logger)
+        self.synchronizer = TwinSynchronizer(event_bus, self.twin_client, logger, node=node)
 
         if self.logger:
             self.logger.info("DigitalTwinIntegration subsystem initialized")
