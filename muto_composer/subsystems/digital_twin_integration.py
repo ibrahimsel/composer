@@ -16,6 +16,8 @@ Digital twin integration subsystem for the Muto Composer.
 Manages communication with CoreTwin services and digital twin synchronization.
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 import rclpy

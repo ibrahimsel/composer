@@ -16,6 +16,8 @@ Watchdog facility for monitoring Composer subsystem health.
 Periodically pings Composer services and reports which are up/down.
 """
 
+from __future__ import annotations
+
 import json
 import time
 from dataclasses import dataclass, field

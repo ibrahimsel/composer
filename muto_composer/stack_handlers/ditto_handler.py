@@ -11,6 +11,8 @@
 #   Composiv.ai - initial API and implementation
 #
 
+from __future__ import annotations
+
 from typing import Any
 
 from muto_composer.model.stack import Stack

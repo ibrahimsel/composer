@@ -16,6 +16,8 @@ Message handling subsystem for the Muto Composer.
 Manages all ROS 2 communication including topics, services, and publishers.
 """
 
+from __future__ import annotations
+
 import copy
 import json
 from typing import Any

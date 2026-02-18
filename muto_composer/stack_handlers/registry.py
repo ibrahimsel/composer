@@ -12,6 +12,8 @@
 #
 
 
+from __future__ import annotations
+
 from rclpy.node import Node
 
 from muto_composer.plugins.base_plugin import StackTypeHandler

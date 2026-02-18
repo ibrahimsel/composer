@@ -16,6 +16,8 @@ Orchestration management subsystem for the Muto Composer.
 Handles high-level deployment workflows and coordination.
 """
 
+from __future__ import annotations
+
 import uuid
 from dataclasses import dataclass
 from typing import Any

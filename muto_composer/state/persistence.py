@@ -18,6 +18,8 @@ Provides persistent storage of stack deployment states to enable
 rollback to previous versions when deployments fail.
 """
 
+from __future__ import annotations
+
 import copy
 import json
 import os

@@ -5,6 +5,8 @@ This module provides utilities for parsing different stack payload formats
 including direct stack payloads, solution manifests, and archive formats.
 """
 
+from __future__ import annotations
+
 import base64
 import gzip
 import io

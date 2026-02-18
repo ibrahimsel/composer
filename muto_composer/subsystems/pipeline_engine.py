@@ -16,6 +16,8 @@ Pipeline engine subsystem for the Muto Composer.
 Manages pipeline configurations and execution.
 """
 
+from __future__ import annotations
+
 import os
 import uuid
 from typing import Any

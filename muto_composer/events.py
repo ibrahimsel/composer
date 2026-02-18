@@ -16,6 +16,8 @@ Event system for the Muto Composer.
 Provides event-driven communication between subsystems.
 """
 
+from __future__ import annotations
+
 import asyncio
 import uuid
 from collections.abc import Callable

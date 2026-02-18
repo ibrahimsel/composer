@@ -11,6 +11,8 @@
 #   Composiv.ai - initial API and implementation
 #
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 

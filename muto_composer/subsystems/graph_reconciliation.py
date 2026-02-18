@@ -20,6 +20,8 @@ stacks, and drives reconciliation actions (node restarts, full redeploys)
 based on criticality policies.
 """
 
+from __future__ import annotations
+
 import fnmatch
 import threading
 import time

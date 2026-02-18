@@ -16,6 +16,8 @@ Stack management subsystem for the Muto Composer.
 Handles stack states, analysis, and transformations.
 """
 
+from __future__ import annotations
+
 import json
 import os
 import re
