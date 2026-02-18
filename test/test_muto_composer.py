@@ -40,10 +40,8 @@ class TestMutoComposerIntegration(unittest.TestCase):
         with contextlib.suppress(BaseException):
             rclpy.init()
 
-        with (
-            patch("muto_composer.muto_composer.MutoComposer._initialize_subsystems"),
-            patch("muto_composer.muto_composer.MutoComposer._setup_ros_interfaces"),
-        ):
+        with patch("muto_composer.muto_composer.MutoComposer._initialize_subsystems"), \
+                patch("muto_composer.muto_composer.MutoComposer._setup_ros_interfaces"):
             self.composer = MutoComposer()
 
         self.test_events = []

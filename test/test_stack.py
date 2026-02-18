@@ -318,11 +318,9 @@ class TestStack(unittest.TestCase):
         stack = Stack(manifest=self.sample_manifest)
         mock_launcher = MagicMock()
 
-        with (
-            patch("muto_composer.model.stack.ComposableNodeContainer"),
-            patch("muto_composer.model.stack.ComposableNode"),
-            patch("muto_composer.model.stack.Node"),
-        ):
+        with patch("muto_composer.model.stack.ComposableNodeContainer"), \
+                patch("muto_composer.model.stack.ComposableNode"), \
+                patch("muto_composer.model.stack.Node"):
             stack.launch(mock_launcher)
 
         mock_launcher.start.assert_called_once()
@@ -333,10 +331,8 @@ class TestStack(unittest.TestCase):
         stack = Stack(manifest=self.sample_manifest)
         mock_launcher = MagicMock()
 
-        with (
-            patch.object(Stack, "kill_diff") as mock_kill_diff,
-            patch.object(Stack, "launch") as mock_launch,
-        ):
+        with patch.object(Stack, "kill_diff") as mock_kill_diff, \
+                patch.object(Stack, "launch") as mock_launch:
             stack.apply(mock_launcher)
 
         mock_kill_diff.assert_called_once_with(mock_launcher, stack)

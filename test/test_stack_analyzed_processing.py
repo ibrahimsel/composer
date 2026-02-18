@@ -107,10 +107,8 @@ class TestStackAnalyzedProcessing(unittest.TestCase):
         )
 
         # Mock both processing methods
-        with (
-            patch.object(self.processor, "merge_stacks") as mock_merge,
-            patch.object(self.processor, "resolve_expressions") as mock_resolve,
-        ):
+        with patch.object(self.processor, "merge_stacks") as mock_merge, \
+                patch.object(self.processor, "resolve_expressions") as mock_resolve:
             mock_merge.return_value = {"command": "$(env HOME)/test", "merged": True}
             mock_resolve.return_value = (
                 '{"command": "/home/user/test", "merged": true, "resolved": true}'
