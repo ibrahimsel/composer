@@ -185,6 +185,10 @@ class MutoDefaultLaunchPlugin(BasePlugin):
                 )
                 handler.apply_to_plugin(self, context, request, response)
                 response.success = True
+
+                # Update the current stack in the twin service
+                stack_id = context.stack_data.get("stackId") or self._get_stack_name(context.stack_data)
+                self._set_current_stack(stack_id, state="started")
             else:
                 response.success = False
                 response.err_msg = "No current stack available or start flag not set."
@@ -454,7 +458,7 @@ class MutoDefaultLaunchPlugin(BasePlugin):
                 return False
 
             request = CoreTwin.Request()
-            request.input = stack_id
+            request.input = json.dumps({"stackId": stack_id, "state": state})
 
             self.set_stack_cli.call_async(request)
             self.get_logger().info(f"Setting current stack to {stack_id} with state={state}")
