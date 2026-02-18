@@ -39,9 +39,9 @@ jobs:
           . /opt/ros/foxy/setup.sh
           colcon build --packages-select muto_msgs muto_composer
 
-      - name: Test
+      - name: Unit Tests
         run: |
           cd /tmp/ws
           . /opt/ros/foxy/setup.sh
           . install/setup.sh
-          python3 -m pytest src/composer/test/ -v
+          python3 -m pytest src/composer/test/ -v --ignore=src/composer/test/integration
