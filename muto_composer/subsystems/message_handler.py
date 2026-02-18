@@ -16,22 +16,115 @@ Message handling subsystem for the Muto Composer.
 Manages all ROS 2 communication including topics, services, and publishers.
 """
 
+import copy
 import json
 from typing import Any
 
-from muto_msgs.msg import MutoAction
+from muto_msgs.msg import MutoAction, MutoActionMeta
 from rclpy.node import Node
 from std_msgs.msg import String
 
 from muto_composer.events import EventBus, EventType, StackRequestEvent
 
 
+class ResponseHandler:
+    """Sends responses back to the agent after pipeline completion/failure."""
+
+    def __init__(self, node: Node, event_bus: EventBus, logger=None):
+        self.node = node
+        self.event_bus = event_bus
+        self.logger = logger
+        self._pending_requests: dict[str, dict[str, Any]] = {}
+
+        # Publisher to send responses back through the agent
+        self._response_pub = node.create_publisher(MutoAction, "command_to_agent", 10)
+
+        # Subscribe to pipeline completion/failure events
+        self.event_bus.subscribe(EventType.PIPELINE_COMPLETED, self._handle_completed)
+        self.event_bus.subscribe(EventType.PIPELINE_FAILED, self._handle_failed)
+
+        if self.logger:
+            self.logger.info("ResponseHandler initialized")
+
+    def register_request(
+        self,
+        correlation_id: str,
+        response_topic: str,
+        correlation_data: str,
+        original_payload: dict[str, Any],
+    ) -> None:
+        """Register a pending request for response tracking."""
+        self._pending_requests[correlation_id] = {
+            "response_topic": response_topic,
+            "correlation_data": correlation_data,
+            "original_payload": original_payload,
+        }
+        if self.logger:
+            self.logger.debug(f"Registered pending request: {correlation_id}")
+
+    def _handle_completed(self, event) -> None:
+        """Handle pipeline completion by sending success response."""
+        request = self._pending_requests.pop(event.correlation_id, None)
+        if not request:
+            return
+        self._send_response(
+            request, status=200, value={"message": "Stack operation completed"}
+        )
+
+    def _handle_failed(self, event) -> None:
+        """Handle pipeline failure by sending error response."""
+        request = self._pending_requests.pop(event.correlation_id, None)
+        if not request:
+            return
+        error_msg = (
+            str(event.error_details)
+            if hasattr(event, "error_details")
+            else "Pipeline execution failed"
+        )
+        self._send_response(request, status=500, value={"message": error_msg})
+
+    def _send_response(self, request: dict, status: int, value: dict) -> None:
+        """Construct and publish a response message back to the agent."""
+        try:
+            # Build response payload from the original Ditto envelope
+            response_payload = copy.deepcopy(request["original_payload"])
+            response_payload["path"] = response_payload.get("path", "").replace(
+                "/inbox", "/outbox"
+            )
+            response_payload["status"] = status
+            response_payload["value"] = value
+
+            # Build MutoActionMeta with original routing info
+            meta = MutoActionMeta()
+            meta.response_topic = request["response_topic"]
+            meta.correlation_data = request["correlation_data"]
+
+            # Build and publish MutoAction
+            msg = MutoAction()
+            msg.context = ""
+            msg.method = ""
+            msg.payload = json.dumps(response_payload)
+            msg.meta = meta
+
+            self._response_pub.publish(msg)
+
+            if self.logger:
+                self.logger.info(
+                    f"Response sent (status={status}) to {request['response_topic']}"
+                )
+
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Failed to send response: {e}")
+
+
 class MessageRouter:
     """Routes incoming messages to appropriate handlers via events."""
 
-    def __init__(self, event_bus: EventBus, logger=None):
+    def __init__(self, event_bus: EventBus, logger=None, response_handler: ResponseHandler | None = None):
         self.event_bus = event_bus
         self.logger = logger
+        self.response_handler = response_handler
 
     def route_muto_action(self, action: MutoAction) -> None:
         """Route MutoAction to orchestration manager via events."""
@@ -42,13 +135,26 @@ class MessageRouter:
             # Unwrap Ditto protocol envelope: the actual stack manifest is in "value"
             stack_payload = payload.get("value", payload) if "path" in payload else payload
 
+            # Extract correlation info from meta for response tracking
+            correlation_id = action.meta.correlation_data or None
+
             event = StackRequestEvent(
                 event_type=EventType.STACK_REQUEST,
                 source_component="message_router",
                 stack_name=stack_name,
                 action=action.method,
                 stack_payload=stack_payload,
+                correlation_id=correlation_id,
             )
+
+            # Register request so ResponseHandler can send a reply when pipeline completes
+            if self.response_handler and correlation_id:
+                self.response_handler.register_request(
+                    correlation_id=correlation_id,
+                    response_topic=action.meta.response_topic,
+                    correlation_data=action.meta.correlation_data,
+                    original_payload=payload,
+                )
 
             if self.logger:
                 self.logger.info(f"Routing {action.method} action via event system")
@@ -113,8 +219,11 @@ class MessageHandler:
         self.event_bus = event_bus
         self.logger = node.get_logger()
 
+        # Initialize response handler (subscribes to pipeline events)
+        self.response_handler = ResponseHandler(node, event_bus, self.logger)
+
         # Initialize components
-        self.router = MessageRouter(event_bus, self.logger)
+        self.router = MessageRouter(event_bus, self.logger, self.response_handler)
         self.publisher_manager = PublisherManager(node)
 
         # Set up subscribers
