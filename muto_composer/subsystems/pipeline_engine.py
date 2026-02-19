@@ -177,6 +177,7 @@ class PipelineExecutor:
                 event_type=EventType.PIPELINE_REQUESTED,
                 source_component="pipeline_executor",
                 correlation_id=event.correlation_id,
+                orchestration_id=event.orchestration_id,
                 pipeline_name=pipeline_name,
                 execution_context=context,
                 stack_payload=stack_payload,  # Use consistent naming
@@ -220,6 +221,7 @@ class PipelineExecutor:
                     event_type=EventType.PIPELINE_STARTED,
                     source_component="pipeline_executor",
                     correlation_id=event.correlation_id,
+                    orchestration_id=event.orchestration_id,
                     pipeline_name=event.pipeline_name,
                     execution_id=execution_id,
                     steps_planned=self._extract_step_names(pipeline),
@@ -240,6 +242,7 @@ class PipelineExecutor:
                         event_type=EventType.PIPELINE_COMPLETED,
                         source_component="pipeline_executor",
                         correlation_id=event.correlation_id,
+                        orchestration_id=event.orchestration_id,
                         pipeline_name=event.pipeline_name,
                         execution_id=execution_id,
                         final_result=result,
@@ -279,11 +282,13 @@ class PipelineExecutor:
                 self.logger.info(f"Executing pipeline: {pipeline.name}")
 
             # Execute the actual pipeline
-            pipeline.execute_pipeline(additional_context=event.execution_context, next_manifest=event.stack_manifest)
+            success = pipeline.execute_pipeline(
+                additional_context=event.execution_context, next_manifest=event.stack_manifest
+            )
 
             # Return pipeline context as result
             return {
-                "success": True,
+                "success": success if success is not None else True,
                 "pipeline": pipeline.name,
                 "context": pipeline.context,
                 "execution_context": event.execution_context,
@@ -327,6 +332,7 @@ class PipelineExecutor:
                 event_type=EventType.PIPELINE_FAILED,
                 source_component="pipeline_executor",
                 correlation_id=event.correlation_id,
+                orchestration_id=event.orchestration_id,
                 pipeline_name=event.pipeline_name,
                 execution_id=execution_id,
                 failure_step=failure_step,
@@ -380,7 +386,7 @@ class PipelineEngine:
                     source_component="pipeline_engine_legacy",
                     pipeline_name=pipeline_name,
                     execution_context=additional_context or {},
-                    stack_manifest=stack_manifest or {},
+                    stack_payload=stack_manifest or {},
                 )
 
                 self.executor._execute_pipeline_internal(pipeline_event)

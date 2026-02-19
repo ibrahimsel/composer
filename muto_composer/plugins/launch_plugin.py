@@ -185,12 +185,23 @@ class MutoDefaultLaunchPlugin(BasePlugin):
                 self.get_logger().info(
                     f"Start requested; current number of launched stacks={len(self._managed_launchers)}"
                 )
-                handler.apply_to_plugin(self, context, request, response)
-                response.success = True
 
-                # Update the current stack in the twin service
-                stack_id = context.stack_data.get("stackId") or self._get_stack_name(context.stack_data)
-                self._set_current_stack(stack_id, state="started")
+                # Stop any previously running stacks — Muto runs one active stack at a time
+                if self._managed_launchers:
+                    self.get_logger().info("Stopping previous stack(s) before starting new one")
+                    for lf in list(self._managed_launchers.keys()):
+                        self._terminate_launch_process(lf)
+
+                result = handler.apply_to_plugin(self, context, request, response)
+                if result is False:
+                    response.success = False
+                    response.err_msg = response.err_msg or "Start handler reported failure"
+                else:
+                    response.success = True
+
+                    # Update the current stack in the twin service
+                    stack_id = context.stack_data.get("stackId") or self._get_stack_name(context.stack_data)
+                    self._set_current_stack(stack_id, state="started")
             else:
                 response.success = False
                 response.err_msg = "No current stack available or start flag not set."
@@ -246,10 +257,14 @@ class MutoDefaultLaunchPlugin(BasePlugin):
                     pass
 
             if is_kill_only_payload:
-                # Kill all managed launchers for this stack
+                # Kill managed launchers matching the target stack (or all if no stack_id)
                 self.get_logger().info(f"Kill action for stack_id={stack_id}")
                 killed_count = 0
                 for launch_file in list(self._managed_launchers.keys()):
+                    if stack_id:
+                        launcher_stack = self._launcher_stack_names.get(launch_file)
+                        if launcher_stack and launcher_stack != stack_id:
+                            continue
                     self._terminate_launch_process(launch_file)
                     killed_count += 1
                 self.get_logger().info(f"Killed {killed_count} launcher(s)")
@@ -266,8 +281,12 @@ class MutoDefaultLaunchPlugin(BasePlugin):
             handler, context = self.find_stack_handler(request)
             if handler and context:
                 context.operation = StackOperation.KILL
-                handler.apply_to_plugin(self, context, request=request, response=response)
-                response.success = True
+                result = handler.apply_to_plugin(self, context, request=request, response=response)
+                if result is False:
+                    response.success = False
+                    response.err_msg = response.err_msg or "Kill handler reported failure"
+                else:
+                    response.success = True
             else:
                 response.success = False
                 response.err_msg = "No current stack available or start flag not set."
@@ -298,14 +317,22 @@ class MutoDefaultLaunchPlugin(BasePlugin):
                 self.get_logger().info(
                     f"Apply requested; current number of launched stacks={len(self._managed_launchers)}"
                 )
-                handler.apply_to_plugin(self, context, request, response)
-                response.success = True
+                result = handler.apply_to_plugin(self, context, request, response)
+                if result is False:
+                    response.success = False
+                    response.err_msg = response.err_msg or "Apply handler reported failure"
+                else:
+                    response.success = True
+
+                    # Sync CoreTwin after successful apply (matches handle_start behavior)
+                    stack_id = context.stack_data.get("stackId") or self._get_stack_name(context.stack_data)
+                    self._set_current_stack(stack_id, state="applied")
             else:
                 response.success = False
                 response.err_msg = "No current stack available or start flag not set."
-                self.get_logger().warning("No current stack available or start flag not set in kill request.")
+                self.get_logger().warning("No current stack available or start flag not set in apply request.")
         except Exception as e:
-            self.get_logger().error(f"Exception occurred during kill: {e}")
+            self.get_logger().error(f"Exception occurred during apply: {e}")
             response.err_msg = str(e)
             response.success = False
 

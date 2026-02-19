@@ -80,6 +80,7 @@ class GraphReconciliationManager:
         self._last_restart_time: dict[str, float] = {}  # FQN -> timestamp
         self._stabilization_active = False
         self._paused = False
+        self._completed_orchestration_id: str | None = None
         self._managed_reconciliation_launchers: dict[str, Any] = {}  # FQN -> Ros2LaunchParent
         self._lock = threading.Lock()
 
@@ -167,11 +168,20 @@ class GraphReconciliationManager:
 
     def _on_orchestration_started(self, event: BaseComposeEvent):
         """Pause drift detection and archive current baseline."""
-        self._logger.info(
-            f"Orchestration started ({event.orchestration_id}), "
-            "pausing drift detection"
-        )
         with self._lock:
+            # Guard: if this orchestration already completed (due to synchronous
+            # pipeline execution finishing before this handler ran), skip.
+            if event.orchestration_id == self._completed_orchestration_id:
+                self._logger.debug(
+                    f"Orchestration {event.orchestration_id} already completed, "
+                    "skipping pause"
+                )
+                return
+
+            self._logger.info(
+                f"Orchestration started ({event.orchestration_id}), "
+                "pausing drift detection"
+            )
             self._paused = True
             self._archived_baseline = self._current_desired_state
             self._active_stack_payload = getattr(event, "stack_payload", None)
@@ -187,10 +197,33 @@ class GraphReconciliationManager:
             "resolving desired state"
         )
 
-        stack_payload = getattr(event, "stack_payload", None) or self._active_stack_payload
-        if not stack_payload:
-            # Try final_stack_state from OrchestrationCompletedEvent
-            stack_payload = getattr(event, "final_stack_state", None)
+        # Record completed ID so a late _on_orchestration_started can skip.
+        with self._lock:
+            self._completed_orchestration_id = event.orchestration_id
+
+        # Kill completions clear the desired state entirely — the user
+        # explicitly wants everything stopped, so there is no desired
+        # graph to reconcile against.  Discard the archived baseline too;
+        # it was only meant for rollback-on-failure, not for restoring
+        # after an intentional kill.
+        if getattr(event, "is_kill_action", False):
+            self._logger.info("Kill completed, clearing desired state")
+            with self._lock:
+                self._current_desired_state = None
+                self._archived_baseline = None
+                self._paused = False
+                self._active_stack_payload = None
+            if self._ros_available:
+                self._publish_desired_state(paused=False)
+            return
+
+        # Prefer final_stack_state from OrchestrationCompletedEvent (authoritative),
+        # then fall back to stack_payload or the cached active payload.
+        stack_payload = (
+            getattr(event, "final_stack_state", None)
+            or getattr(event, "stack_payload", None)
+            or self._active_stack_payload
+        )
 
         content_type = self._get_content_type(stack_payload)
 

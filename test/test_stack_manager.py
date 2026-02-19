@@ -30,55 +30,78 @@ class TestStackAnalyzer(unittest.TestCase):
         self.logger = MagicMock()
         self.analyzer = StackAnalyzer(self.event_bus, self.logger)
 
-    def test_analyze_archive_stack_type(self):
-        """Test detection of archive stack type."""
-        stack = {"metadata": {"content_type": "stack/archive"}}
+    def test_analyze_declarative_stack_type(self):
+        """Test detection of declarative stack type."""
+        stack = {"metadata": {"content_type": "stack/declarative"}}
+        self.assertEqual(self.analyzer.analyze_stack_type(stack), StackType.DECLARATIVE)
 
-        stack_type = self.analyzer.analyze_stack_type(stack)
-        self.assertEqual(stack_type, StackType.ARCHIVE)
+    def test_analyze_workspace_stack_type(self):
+        """Test detection of workspace stack type."""
+        stack = {"metadata": {"content_type": "stack/workspace"}}
+        self.assertEqual(self.analyzer.analyze_stack_type(stack), StackType.WORKSPACE)
 
-    def test_analyze_json_stack_type(self):
-        """Test detection of JSON stack type."""
-        stack = {"metadata": {"content_type": "stack/json"}}
-
-        stack_type = self.analyzer.analyze_stack_type(stack)
-        self.assertEqual(stack_type, StackType.JSON)
-
-    def test_analyze_raw_stack_type(self):
-        """Test detection of raw stack type."""
-        stack = {"node": ["test_node"], "composable": ["test_composable"]}
-
-        stack_type = self.analyzer.analyze_stack_type(stack)
-        self.assertEqual(stack_type, StackType.RAW)
+    def test_analyze_native_stack_type(self):
+        """Test detection of native stack type."""
+        stack = {"metadata": {"content_type": "stack/native"}}
+        self.assertEqual(self.analyzer.analyze_stack_type(stack), StackType.NATIVE)
 
     def test_analyze_legacy_stack_type(self):
         """Test detection of legacy stack type."""
+        stack = {"metadata": {"content_type": "stack/legacy"}}
+        self.assertEqual(self.analyzer.analyze_stack_type(stack), StackType.LEGACY)
+
+    def test_analyze_ditto_alias(self):
+        """Test that stack/ditto resolves to LEGACY."""
+        stack = {"metadata": {"content_type": "stack/ditto"}}
+        self.assertEqual(self.analyzer.analyze_stack_type(stack), StackType.LEGACY)
+
+    def test_analyze_archive_alias(self):
+        """Test that stack/archive resolves to WORKSPACE."""
+        stack = {"metadata": {"content_type": "stack/archive"}}
+        self.assertEqual(self.analyzer.analyze_stack_type(stack), StackType.WORKSPACE)
+
+    def test_analyze_json_alias(self):
+        """Test that stack/json resolves to DECLARATIVE."""
+        stack = {"metadata": {"content_type": "stack/json"}}
+        self.assertEqual(self.analyzer.analyze_stack_type(stack), StackType.DECLARATIVE)
+
+    def test_analyze_unprefixed_archive(self):
+        """Test backward compatibility for unprefixed archive content type."""
+        stack = {"metadata": {"content_type": "archive"}}
+        self.assertEqual(self.analyzer.analyze_stack_type(stack), StackType.WORKSPACE)
+
+    def test_analyze_unprefixed_json(self):
+        """Test backward compatibility for unprefixed json content type."""
+        stack = {"metadata": {"content_type": "json"}}
+        self.assertEqual(self.analyzer.analyze_stack_type(stack), StackType.DECLARATIVE)
+
+    def test_analyze_raw_stack_type(self):
+        """Test detection of raw stack type."""
+        stack = {"metadata": {"content_type": "stack/raw"}}
+        self.assertEqual(self.analyzer.analyze_stack_type(stack), StackType.RAW)
+
+    def test_infer_native_from_structure(self):
+        """Test inferring native type from launch file structure."""
+        stack = {"launch": {"file": "test.launch.py"}}
+        self.assertEqual(self.analyzer.analyze_stack_type(stack), StackType.NATIVE)
+
+    def test_infer_declarative_from_structure(self):
+        """Test inferring declarative type from node structure."""
+        stack = {"launch": {"node": [{"name": "test"}]}}
+        self.assertEqual(self.analyzer.analyze_stack_type(stack), StackType.DECLARATIVE)
+
+    def test_infer_legacy_from_structure(self):
+        """Test inferring legacy type from launch_description_source."""
         stack = {
             "launch_description_source": "test.launch.py",
             "on_start": "start_command",
             "on_kill": "kill_command",
         }
+        self.assertEqual(self.analyzer.analyze_stack_type(stack), StackType.LEGACY)
 
-        stack_type = self.analyzer.analyze_stack_type(stack)
-        self.assertEqual(stack_type, StackType.LEGACY)
-
-    def test_analyze_legacy_archive_stack_type(self):
-        """Test backward compatibility for legacy archive content type."""
-        stack = {"metadata": {"content_type": "archive"}}
-
-        stack_type = self.analyzer.analyze_stack_type(stack)
-        self.assertEqual(stack_type, StackType.ARCHIVE)
-
-    def test_analyze_legacy_json_stack_type(self):
-        """Test backward compatibility for legacy JSON content type."""
-        stack = {"metadata": {"content_type": "json"}}
-
-        stack_type = self.analyzer.analyze_stack_type(stack)
-        self.assertEqual(stack_type, StackType.JSON)
-
-    def test_determine_archive_execution_requirements(self):
-        """Test execution requirements for archive stack."""
-        stack = {"metadata": {"content_type": "stack/archive"}, "node": ["test_node"]}
+    def test_determine_workspace_execution_requirements(self):
+        """Test execution requirements for workspace stack."""
+        stack = {"metadata": {"content_type": "stack/workspace"}, "node": ["test_node"]}
 
         requirements = self.analyzer.determine_execution_requirements(stack)
 
@@ -87,9 +110,9 @@ class TestStackAnalyzer(unittest.TestCase):
         self.assertTrue(requirements.has_nodes)
         self.assertFalse(requirements.has_composables)
 
-    def test_determine_json_execution_requirements(self):
-        """Test execution requirements for JSON stack."""
-        stack = {"metadata": {"content_type": "stack/json"}, "composable": ["test_composable"]}
+    def test_determine_declarative_execution_requirements(self):
+        """Test execution requirements for declarative stack."""
+        stack = {"metadata": {"content_type": "stack/declarative"}, "composable": ["test_composable"]}
 
         requirements = self.analyzer.determine_execution_requirements(stack)
 
@@ -97,6 +120,15 @@ class TestStackAnalyzer(unittest.TestCase):
         self.assertTrue(requirements.requires_launch)
         self.assertFalse(requirements.has_nodes)
         self.assertTrue(requirements.has_composables)
+
+    def test_determine_native_execution_requirements(self):
+        """Test execution requirements for native stack."""
+        stack = {"metadata": {"content_type": "stack/native"}, "launch": {"file": "test.launch.py"}}
+
+        requirements = self.analyzer.determine_execution_requirements(stack)
+
+        self.assertFalse(requirements.requires_provision)
+        self.assertTrue(requirements.requires_launch)
 
     def test_handle_stack_request_event(self):
         """Test handling of stack request event."""
@@ -114,7 +146,7 @@ class TestStackAnalyzer(unittest.TestCase):
             source_component="test",
             stack_name="test_stack",
             action="start",
-            stack_payload={"metadata": {"content_type": "stack/archive"}, "node": ["test_node"]},
+            stack_payload={"metadata": {"content_type": "stack/workspace"}, "node": ["test_node"]},
         )
 
         # Handle the event
@@ -126,7 +158,7 @@ class TestStackAnalyzer(unittest.TestCase):
         self.assertEqual(analyzed_event.event_type, EventType.STACK_ANALYZED)
         self.assertEqual(analyzed_event.stack_name, "test_stack")
         self.assertEqual(analyzed_event.action, "start")
-        self.assertEqual(analyzed_event.analysis_result["stack_type"], StackType.ARCHIVE.value)
+        self.assertEqual(analyzed_event.analysis_result["stack_type"], StackType.WORKSPACE.value)
 
     def test_handle_kill_action_with_stack_id(self):
         """Test that kill action only requires stackId, not full manifest."""

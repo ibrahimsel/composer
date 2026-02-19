@@ -93,7 +93,11 @@ class Pipeline:
 
         Args:
             additional_context (dict): Additional context variables to include.
+
+        Returns:
+            bool: True if all steps succeeded, False if any step failed.
         """
+        self.context = {}  # Reset context between pipeline runs
         if additional_context:
             self.context.update(additional_context)
 
@@ -154,6 +158,7 @@ class Pipeline:
                     break
 
         executor.destroy_node()
+        return not failed
 
     def execute_step(self, step, executor: Node, inputManifest=None):
         """

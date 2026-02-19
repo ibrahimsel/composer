@@ -23,6 +23,7 @@ from muto_composer.plugins.base_plugin import (
     StackOperation,
     StackTypeHandler,
 )
+from muto_composer.plugins.launch_plugin import ShellProcessWrapper
 
 
 class NativeStackHandler(StackTypeHandler):
@@ -49,6 +50,8 @@ class NativeStackHandler(StackTypeHandler):
         """Double dispatch: delegate to plugin's accept method."""
         if context.operation == StackOperation.PROVISION:
             return self._provision_native(context, plugin)
+        elif context.operation == StackOperation.COMPOSE:
+            return True
         elif context.operation == StackOperation.START:
             return self._start_native(context, plugin)
         elif context.operation == StackOperation.KILL:
@@ -136,7 +139,11 @@ class NativeStackHandler(StackTypeHandler):
                 preexec_fn=os.setsid,
             )
 
-            self._managed_launchers[launch_file] = process
+            wrapper = ShellProcessWrapper(process, launch_file)
+            self._managed_launchers[launch_file] = wrapper
+            plugin._managed_launchers[launch_file] = wrapper
+            stack_name = context.stack_data.get("metadata", {}).get("name", "native")
+            plugin._launcher_stack_names[launch_file] = stack_name
 
             if self.logger:
                 self.logger.info(f"Native stack launched (PID {process.pid}): {launch_file}")
@@ -153,8 +160,11 @@ class NativeStackHandler(StackTypeHandler):
             launch_config = context.stack_data.get("launch", {})
             launch_file = launch_config.get("file", "")
 
-            process = self._managed_launchers.pop(launch_file, None)
-            if process is not None:
+            wrapper = self._managed_launchers.pop(launch_file, None)
+            plugin._managed_launchers.pop(launch_file, None)
+            plugin._launcher_stack_names.pop(launch_file, None)
+            if wrapper is not None:
+                process = wrapper.process if isinstance(wrapper, ShellProcessWrapper) else wrapper
                 import signal
 
                 try:

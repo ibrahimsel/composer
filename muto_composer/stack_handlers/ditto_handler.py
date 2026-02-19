@@ -32,6 +32,14 @@ class DittoStackHandler(StackTypeHandler):
         self.logger = logger
         self.managed_launchers = {}
 
+    def _get_launcher_key(self, context: StackContext) -> str:
+        """Get a stable launcher key using stack name instead of volatile hash."""
+        stack_data = context.stack_data or {}
+        name = stack_data.get("metadata", {}).get("name")
+        if name:
+            return f"stack:{name}"
+        return context.hash
+
     def can_handle(self, payload: dict[str, Any]) -> bool:
         """
         Check if payload matches legacy format:
@@ -95,11 +103,13 @@ class DittoStackHandler(StackTypeHandler):
             launcher = Ros2LaunchParent([])
 
             # Try node/composable arrays
+            key = self._get_launcher_key(context)
+
             if context.stack_data.get("node") or context.stack_data.get("composable"):
                 stack = Stack(manifest=context.stack_data)
                 stack.launch(launcher)
-                self.managed_launchers[context.hash] = launcher
-                plugin._managed_launchers[context.hash] = launcher
+                self.managed_launchers[key] = launcher
+                plugin._managed_launchers[key] = launcher
                 return True
 
             # Try launch structure
@@ -107,8 +117,8 @@ class DittoStackHandler(StackTypeHandler):
             if launch_data:
                 stack = Stack(manifest=launch_data)
                 stack.launch(launcher)
-                self.managed_launchers[context.hash] = launcher
-                plugin._managed_launchers[context.hash] = launcher
+                self.managed_launchers[key] = launcher
+                plugin._managed_launchers[key] = launcher
                 return True
 
             if self.logger:
@@ -123,11 +133,12 @@ class DittoStackHandler(StackTypeHandler):
     def _kill_ditto(self, context: StackContext, plugin: BasePlugin) -> bool:
         """Kill a Ditto stack."""
         try:
-            launcher = self.managed_launchers.get(context.hash)
+            key = self._get_launcher_key(context)
+            launcher = self.managed_launchers.get(key)
             if launcher:
                 launcher.kill()
-                self.managed_launchers.pop(context.hash, None)
-                plugin._managed_launchers.pop(context.hash, None)
+                self.managed_launchers.pop(key, None)
+                plugin._managed_launchers.pop(key, None)
             return True
 
         except Exception as e:
@@ -142,20 +153,21 @@ class DittoStackHandler(StackTypeHandler):
             self._kill_ditto(context, plugin)
 
             launcher = Ros2LaunchParent([])
+            key = self._get_launcher_key(context)
 
             if context.stack_data.get("node") or context.stack_data.get("composable"):
                 stack = Stack(manifest=context.stack_data)
                 stack.apply(launcher)
-                self.managed_launchers[context.hash] = launcher
-                plugin._managed_launchers[context.hash] = launcher
+                self.managed_launchers[key] = launcher
+                plugin._managed_launchers[key] = launcher
                 return True
 
             launch_data = context.stack_data.get("launch")
             if launch_data:
                 stack = Stack(manifest=launch_data)
                 stack.apply(launcher)
-                self.managed_launchers[context.hash] = launcher
-                plugin._managed_launchers[context.hash] = launcher
+                self.managed_launchers[key] = launcher
+                plugin._managed_launchers[key] = launcher
                 return True
 
             if self.logger:

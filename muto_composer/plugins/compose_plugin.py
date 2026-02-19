@@ -79,8 +79,12 @@ class MutoDefaultComposePlugin(BasePlugin):
                 self.get_logger().warn("No valid handler or context found.")
             else:
                 context.operation = StackOperation.COMPOSE
-                handler.apply_to_plugin(self, context, request, response)
-                response.success = True
+                result = handler.apply_to_plugin(self, context, request, response)
+                if result is False:
+                    response.success = False
+                    response.err_msg = response.err_msg or "Compose handler reported failure"
+                else:
+                    response.success = True
 
         except Exception as e:
             response.success = False

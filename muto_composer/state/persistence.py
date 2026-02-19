@@ -274,9 +274,7 @@ class StatePersistence:
         """
         state = self.load_state(stack_name)
         if state is None:
-            if self.logger:
-                self.logger.warning(f"No state found to mark completed: {stack_name}")
-            return False
+            state = StackState(stack_name=stack_name)
 
         state.status = DeploymentStatus.RUNNING.value
         state.error_message = ""

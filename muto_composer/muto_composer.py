@@ -68,7 +68,13 @@ class MutoComposer(Node):
         self.get_logger().info("MutoComposer initialized successfully")
 
     def _initialize_subsystems(self):
-        """Initialize all subsystems in correct dependency order."""
+        """Initialize all subsystems in correct dependency order.
+
+        Order matters: EventBus delivers events to subscribers in subscription
+        order.  GraphReconciliationManager must subscribe to ORCHESTRATION_STARTED
+        *before* PipelineEngine so that drift detection is paused before the
+        pipeline runs (and potentially completes) synchronously.
+        """
         try:
             # Initialize core subsystems
             self.message_handler = MessageHandler(node=self, event_bus=self.event_bus)
@@ -79,11 +85,14 @@ class MutoComposer(Node):
 
             self.orchestration_manager = OrchestrationManager(event_bus=self.event_bus, logger=self.get_logger())
 
-            self.pipeline_engine = PipelineEngine(event_bus=self.event_bus, logger=self.get_logger())
-
+            # GraphReconciliation subscribes to ORCHESTRATION_STARTED here —
+            # must come before PipelineEngine so the "paused" state is set
+            # before the pipeline executes and fires ORCHESTRATION_COMPLETED.
             self.graph_reconciliation = GraphReconciliationManager(
                 node=self, event_bus=self.event_bus, logger=self.get_logger()
             )
+
+            self.pipeline_engine = PipelineEngine(event_bus=self.event_bus, logger=self.get_logger())
 
             self.get_logger().info("All subsystems initialized successfully")
 

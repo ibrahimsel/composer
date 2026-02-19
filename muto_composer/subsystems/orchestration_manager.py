@@ -99,19 +99,33 @@ class ExecutionPathDeterminer:
             has_on_start_and_on_kill = all([stack_payload.get("on_start"), stack_payload.get("on_kill")])
 
             # Determine execution requirements based on stack type and characteristics
-            if stack_type == StackType.ARCHIVE.value:
+            if stack_type in (StackType.WORKSPACE.value, StackType.ARCHIVE.value):
                 should_run_provision = True
                 should_run_launch = True
                 requires_merging = False
                 if self.logger:
-                    self.logger.info("Archive manifest detected; running ProvisionPlugin and LaunchPlugin")
+                    self.logger.info(f"Workspace/archive stack detected ({stack_type}); running ProvisionPlugin and LaunchPlugin")
 
-            elif stack_type == StackType.JSON.value:
+            elif stack_type in (StackType.DECLARATIVE.value, StackType.JSON.value):
                 should_run_provision = False
                 should_run_launch = True
                 requires_merging = True
                 if self.logger:
-                    self.logger.info("JSON manifest detected; running LaunchPlugin")
+                    self.logger.info(f"Declarative stack detected ({stack_type}); merging and running LaunchPlugin")
+
+            elif stack_type == StackType.NATIVE.value:
+                should_run_provision = False
+                should_run_launch = True
+                requires_merging = False
+                if self.logger:
+                    self.logger.info("Native stack detected; running LaunchPlugin directly")
+
+            elif stack_type in (StackType.LEGACY.value, StackType.DITTO.value):
+                should_run_provision = False
+                should_run_launch = True
+                requires_merging = True
+                if self.logger:
+                    self.logger.info(f"Legacy/ditto stack detected ({stack_type}); merging and running LaunchPlugin")
 
             elif is_next_stack_empty and (has_launch_description or has_on_start_and_on_kill):
                 should_run_provision = False
@@ -132,7 +146,7 @@ class ExecutionPathDeterminer:
                 should_run_launch = False
                 requires_merging = False
                 if self.logger:
-                    self.logger.info("Conditions not met to run ProvisionPlugin AND LaunchPlugin")
+                    self.logger.info(f"Unrecognized stack type ({stack_type}); no plugins will run")
 
             context_variables = {
                 "should_run_provision": should_run_provision,
@@ -189,8 +203,10 @@ class DeploymentOrchestrator:
             orchestration_id = str(uuid.uuid4())
 
             # Save current state before deployment (enables rollback to previous stack)
+            # Skip state mutation for kill actions — they don't deploy a new stack
             stack_payload = event.stack_payload
-            if stack_payload and not self._rollback_in_progress:
+            is_kill_action = execution_path.context_variables.get("is_kill_action", False)
+            if stack_payload and not self._rollback_in_progress and not is_kill_action:
                 # Use global active state to enable cross-stack rollback
                 self.state_persistence.mark_active_deployment_started(stack_payload)
                 if self.logger:
@@ -241,14 +257,19 @@ class DeploymentOrchestrator:
     def handle_pipeline_completed(self, event: PipelineCompletedEvent):
         """Handle pipeline completion and finalize orchestration."""
         try:
-            # Find the orchestration for this pipeline
+            # Match orchestration by orchestration_id (propagated through pipeline chain)
             orchestration_id = None
             orchestration_context = None
-            for orch_id, context in self.active_orchestrations.items():
-                if context.get("status") in ("started", "rollback_started"):
-                    orchestration_id = orch_id
-                    orchestration_context = context
-                    break
+            if event.orchestration_id and event.orchestration_id in self.active_orchestrations:
+                orchestration_id = event.orchestration_id
+                orchestration_context = self.active_orchestrations[orchestration_id]
+            else:
+                # Fallback for backward compat / events without orchestration_id
+                for orch_id, context in self.active_orchestrations.items():
+                    if context.get("status") in ("started", "rollback_started"):
+                        orchestration_id = orch_id
+                        orchestration_context = context
+                        break
 
             if not orchestration_id:
                 if self.logger:
@@ -268,6 +289,12 @@ class DeploymentOrchestrator:
             # Check if this was a rollback completion
             is_rollback = orchestration_context.get("status") == "rollback_started"
 
+            # Check if this was a kill action — kills don't affect deployment state
+            is_kill_action = False
+            exec_path = orchestration_context.get("execution_path")
+            if exec_path:
+                is_kill_action = exec_path.context_variables.get("is_kill_action", False)
+
             if is_rollback:
                 # Mark rollback as completed in global active state
                 self.state_persistence.mark_active_rollback_completed()
@@ -283,8 +310,9 @@ class DeploymentOrchestrator:
                     rollback_duration=0.0,
                 )
                 self.event_bus.publish_sync(rollback_completed)
-            else:
+            elif not is_kill_action:
                 # Normal deployment completed - update global active state
+                # Skip for kill actions which don't deploy a new stack
                 self.state_persistence.mark_active_deployment_completed()
                 if self.logger:
                     self.logger.info(f"Deployment completed: {stack_name}")
@@ -303,6 +331,12 @@ class DeploymentOrchestrator:
                 orchestration_context = self.active_orchestrations[orchestration_id]
                 orchestration_context["status"] = "completed"
 
+                # Determine if this was a kill action for downstream consumers
+                is_kill = False
+                exec_path = orchestration_context.get("execution_path")
+                if exec_path:
+                    is_kill = exec_path.context_variables.get("is_kill_action", False)
+
                 completion_event = OrchestrationCompletedEvent(
                     event_type=EventType.ORCHESTRATION_COMPLETED,
                     source_component="deployment_orchestrator",
@@ -310,6 +344,7 @@ class DeploymentOrchestrator:
                     final_stack_state=final_stack_state,
                     execution_summary={"status": "success"},
                     duration=0.0,  # Would be calculated in real implementation
+                    is_kill_action=is_kill,
                 )
 
                 self.event_bus.publish_sync(completion_event)
@@ -333,20 +368,32 @@ class DeploymentOrchestrator:
     def handle_pipeline_failed(self, event: PipelineFailedEvent):
         """Handle pipeline failure and trigger rollback if possible."""
         try:
+            # Resolve the orchestration_id from the event (propagated through pipeline chain)
+            # Fall back to scanning active orchestrations if not available
+            orch_id = event.orchestration_id
+            if not orch_id or orch_id not in self.active_orchestrations:
+                for candidate_id, ctx in self.active_orchestrations.items():
+                    if ctx.get("status") in ("started", "rollback_started"):
+                        orch_id = candidate_id
+                        break
+
             # Don't trigger rollback if we're already in a rollback
             if self._rollback_in_progress:
                 if self.logger:
                     self.logger.error(f"Rollback failed: {event.pipeline_name} - {event.error_details}")
-                # Publish rollback failed event
+                # Publish rollback failed event with correct orchestration_id
                 rollback_failed = RollbackFailedEvent(
                     event_type=EventType.ROLLBACK_FAILED,
                     source_component="deployment_orchestrator",
-                    orchestration_id=event.execution_id,
+                    orchestration_id=orch_id or event.execution_id,
                     error_details=str(event.error_details),
                     original_failure="Rollback pipeline failed",
                 )
                 self.event_bus.publish_sync(rollback_failed)
                 self._rollback_in_progress = False
+                # Clean up the orchestration
+                if orch_id and orch_id in self.active_orchestrations:
+                    del self.active_orchestrations[orch_id]
                 return
 
             if self.logger:
@@ -368,16 +415,20 @@ class DeploymentOrchestrator:
                 if self.logger:
                     self.logger.info("Rollback not possible - no previous deployment")
 
-                # Publish orchestration failed event without rollback
+                # Publish orchestration failed event with correct orchestration_id
                 failed_event = OrchestrationFailedEvent(
                     event_type=EventType.ORCHESTRATION_FAILED,
                     source_component="deployment_orchestrator",
-                    orchestration_id=event.execution_id,
+                    orchestration_id=orch_id or event.execution_id,
                     error_details=str(event.error_details),
                     failed_step=event.failure_step,
                     can_rollback=False,
                 )
                 self.event_bus.publish_sync(failed_event)
+
+            # Clean up the failed orchestration
+            if orch_id and orch_id in self.active_orchestrations:
+                del self.active_orchestrations[orch_id]
 
         except Exception as e:
             if self.logger:

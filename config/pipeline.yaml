@@ -25,7 +25,7 @@ pipelines:
         - service: muto_start_stack
           plugin: LaunchPlugin
           name: start_stack_step
-          condition: "compose_step.success == True"
+          condition: "compose_step.success == True and should_run_launch == True"
     compensation:
       - service: muto_kill_stack
         plugin: LaunchPlugin
@@ -55,7 +55,7 @@ pipelines:
         - service: muto_apply_stack
           plugin: LaunchPlugin
           name: apply_stack_step
-          condition: "compose_step.success == True"
+          condition: "compose_step.success == True and should_run_launch == True"
     compensation:
       - service: muto_kill_stack
         plugin: LaunchPlugin

@@ -30,8 +30,12 @@ class MutoProvisionPlugin(BasePlugin):
         try:
             if handler and context:
                 context.operation = StackOperation.PROVISION
-                handler.apply_to_plugin(self, context, request, response)
-                response.success = True
+                result = handler.apply_to_plugin(self, context, request, response)
+                if result is False:
+                    response.success = False
+                    response.err_msg = response.err_msg or "Provision handler reported failure"
+                else:
+                    response.success = True
             else:
                 response.err_msg = "No current stack received or start flag not set."
                 response.success = False

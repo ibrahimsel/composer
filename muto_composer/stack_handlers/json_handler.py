@@ -33,6 +33,14 @@ class JsonStackHandler(StackTypeHandler):
         self.is_up_to_date = False
         self.managed_launchers = {}
 
+    def _get_launcher_key(self, context: StackContext) -> str:
+        """Get a stable launcher key using stack name instead of volatile hash."""
+        stack_data = context.stack_data or {}
+        name = stack_data.get("metadata", {}).get("name")
+        if name:
+            return f"stack:{name}"
+        return context.hash
+
     def can_handle(self, payload: dict[str, Any]) -> bool:
         """Check for stack/json or stack/declarative content_type."""
         if not isinstance(payload, dict):
@@ -46,6 +54,8 @@ class JsonStackHandler(StackTypeHandler):
 
         if context.operation == StackOperation.PROVISION:
             return self._provision_json(context, plugin)
+        elif context.operation == StackOperation.COMPOSE:
+            return True
         elif context.operation == StackOperation.START:
             return self._start_json(context, plugin)
         elif context.operation == StackOperation.KILL:
@@ -82,17 +92,19 @@ class JsonStackHandler(StackTypeHandler):
             return False
         stack = Stack(manifest=launch_data)
         stack.launch(launcher)
-        self.managed_launchers[context.hash] = launcher
-        plugin._managed_launchers[context.hash] = launcher
+        key = self._get_launcher_key(context)
+        self.managed_launchers[key] = launcher
+        plugin._managed_launchers[key] = launcher
         return True
 
     def _kill_json(self, context: StackContext, plugin: BasePlugin) -> bool:
 
-        launcher = self.managed_launchers.get(context.hash, None)
+        key = self._get_launcher_key(context)
+        launcher = self.managed_launchers.get(key, None)
         if launcher:
             launcher.kill()
-            self.managed_launchers.pop(context.hash, None)
-            plugin._managed_launchers.pop(context.hash, None)
+            self.managed_launchers.pop(key, None)
+            plugin._managed_launchers.pop(key, None)
         return True
 
     def _apply_json(self, context: StackContext, plugin: BasePlugin) -> bool:
@@ -106,6 +118,7 @@ class JsonStackHandler(StackTypeHandler):
             return False
         stack = Stack(manifest=launch_data)
         stack.apply(launcher)
-        self.managed_launchers[context.hash] = launcher
-        plugin._managed_launchers[context.hash] = launcher
+        key = self._get_launcher_key(context)
+        self.managed_launchers[key] = launcher
+        plugin._managed_launchers[key] = launcher
         return True

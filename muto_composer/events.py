@@ -267,6 +267,7 @@ class OrchestrationCompletedEvent(BaseComposeEvent):
         final_stack_state: dict[str, Any] | None = None,
         execution_summary: dict[str, Any] | None = None,
         duration: float = 0.0,
+        is_kill_action: bool = False,
         **kwargs,
     ):
         super().__init__(
@@ -278,6 +279,7 @@ class OrchestrationCompletedEvent(BaseComposeEvent):
         self.final_stack_state = final_stack_state or {}
         self.execution_summary = execution_summary or {}
         self.duration = duration
+        self.is_kill_action = is_kill_action
 
 
 class OrchestrationFailedEvent(BaseComposeEvent):

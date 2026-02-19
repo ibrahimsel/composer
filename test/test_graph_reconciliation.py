@@ -68,6 +68,7 @@ def _make_manager(event_bus=None):
         mgr._last_restart_time = {}
         mgr._stabilization_active = False
         mgr._paused = False
+        mgr._completed_orchestration_id = None
         mgr._managed_reconciliation_launchers = {}
         mgr._ros_available = False
         import threading
