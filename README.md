@@ -1,6 +1,11 @@
-# Composer
+# Muto Composer
 
-**Composer** is a ROS 2 package designed to organize and automate the software deployment process to a fleet of vehicles. It streamlines the workflow by managing stack definitions, resolving dependencies, handling buildjobs and orchestrating the execution of various pipelines.
+| ROS 2 Distro | Ubuntu | Python | Status |
+|---|---|---|---|
+| Humble | 22.04 | 3.10 | [![Humble](https://github.com/ibrahimsel/composer/actions/workflows/ci-humble.yml/badge.svg)](https://github.com/ibrahimsel/composer/actions/workflows/ci-humble.yml) |
+| Jazzy | 24.04 | 3.12 | [![Jazzy](https://github.com/ibrahimsel/composer/actions/workflows/ci-jazzy.yml/badge.svg)](https://github.com/ibrahimsel/composer/actions/workflows/ci-jazzy.yml) |
+
+**Muto Composer** is a ROS 2 package designed to organize and automate the software deployment process to a fleet of vehicles. It streamlines the workflow by managing stack definitions, resolving dependencies, handling buildjobs and orchestrating the execution of various pipelines.
 
 ## Table of Contents
 
@@ -58,8 +63,8 @@ For a detailed overview, refer to the [Architecture Documentation](docs/architec
 
 ### Prerequisites
 
-- **ROS 2 Foxy** or later installed on your system.
-- **Python 3.8** or later.
+- **ROS 2 Humble** or later installed on your system.
+- **Python 3.10** or later.
 - Ensure that you have `colcon` and `rosdep` installed for building and dependency management.
 
 ```bash

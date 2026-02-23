@@ -17,21 +17,31 @@
 -->
 
 <package format="3">
-  <name>composer</name>
-  <version>0.2.0</version>
-  <description>Composer provides orchestration utilites for ROS2 environment</description>
+  <name>muto_composer</name>
+  <version>0.42.0</version>
+  <description>Eclipse Muto Composer - stack deployment and orchestration engine that manages provisioning, launching, and lifecycle of ROS 2 software stacks</description>
   <maintainer email="info@composiv.ai">composiv.ai</maintainer>
-  <license>Eclipse Public License</license>
-  
+  <license file="LICENSE">EPL-2.0</license>
+
+  <url type="website">https://eclipse.dev/muto/</url>
+  <url type="repository">https://github.com/eclipse-muto/composer</url>
+  <url type="bugtracker">https://github.com/eclipse-muto/composer/issues</url>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>
   <test_depend>python3-pytest</test_depend>
-  <test_depend>ament_cmake_pytest</test_depend>
-  
-
   <build_depend>python3-jsonschema</build_depend>
   <exec_depend>python3-jsonschema</exec_depend>
+
+  <depend>rclpy</depend>
+  <depend>launch_ros</depend>
+  <depend>ament_index_python</depend>
+  <depend>std_srvs</depend>
+  <depend>python3-requests</depend>
+
   <export>
     <build_type>ament_python</build_type>
   </export>

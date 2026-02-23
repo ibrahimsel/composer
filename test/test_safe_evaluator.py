@@ -12,7 +12,8 @@
 #
 
 import unittest
-from composer.workflow.safe_evaluator import SafeEvaluator
+
+from muto_composer.workflow.safe_evaluator import SafeEvaluator
 
 
 class TestSafeEvaluator(unittest.TestCase):

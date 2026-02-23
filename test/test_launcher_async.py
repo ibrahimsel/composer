@@ -12,9 +12,11 @@
 #
 
 import unittest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import rclpy
-from composer.workflow.launcher import Ros2LaunchParent
+
+from muto_composer.workflow.launcher import Ros2LaunchParent
 
 
 class TestLauncherAsync(unittest.IsolatedAsyncioTestCase):
@@ -30,10 +32,10 @@ class TestLauncherAsync(unittest.IsolatedAsyncioTestCase):
         rclpy.shutdown()
 
     @patch("rclpy.logging")
-    @patch("composer.workflow.launcher.OnProcessExit")
-    @patch("composer.workflow.launcher.RegisterEventHandler")
+    @patch("muto_composer.workflow.launcher.OnProcessExit")
+    @patch("muto_composer.workflow.launcher.RegisterEventHandler")
     @patch.object(Ros2LaunchParent, "parse_launch_arguments")
-    @patch("composer.workflow.launcher.launch")
+    @patch("muto_composer.workflow.launcher.launch")
     async def test_launch_a_launch_file_test(
         self,
         mock_launch,
@@ -63,9 +65,7 @@ class TestLauncherAsync(unittest.IsolatedAsyncioTestCase):
         mock_launch.LaunchDescription.assert_called_once_with(
             [mock_launch.actions.IncludeLaunchDescription()]
         )
-        mock_launch.LaunchDescription().add_action.assert_called_with(
-            mock_register_event_handler()
-        )
+        mock_launch.LaunchDescription().add_action.assert_called_with(mock_register_event_handler())
         self.assertEqual(mock_launch.LaunchDescription().add_action.call_count, 2)
         mock_logger.get_logger().info.assert_called_once()
         mock_on_process_exit.assert_called_once()

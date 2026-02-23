@@ -16,11 +16,10 @@ from unittest.mock import MagicMock, patch
 
 import rclpy
 
-from composer.workflow.router import Router
+from muto_composer.workflow.router import Router
 
 
 class TestRouter(unittest.TestCase):
-
     def setUp(self):
         self.pipelines = {
             "start": MagicMock(),
@@ -39,7 +38,7 @@ class TestRouter(unittest.TestCase):
         rclpy.shutdown()
 
     @patch("rclpy.logging")
-    @patch("composer.workflow.router.Pipeline.execute_pipeline")
+    @patch("muto_composer.workflow.router.Pipeline.execute_pipeline")
     def test_route(self, mock_pipeline, mock_logging):
         main_route = Router(self.pipelines)
         main_route.route(self.payload.get("action", ""))
@@ -53,9 +52,7 @@ class TestRouter(unittest.TestCase):
         main_route = Router(self.pipelines)
         main_route.route(self.payload.get("action", ""))
         self.pipeline.execute_pipeline.assert_not_called()
-        mock_logging.get_logger().warn.assert_called_once_with(
-            "No pipeline found for action: kill"
-        )
+        mock_logging.get_logger().warn.assert_called_once_with("No pipeline found for action: kill")
 
 
 if __name__ == "__main__":

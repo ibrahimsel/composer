@@ -12,14 +12,15 @@
 #
 
 import os
-from setuptools import find_packages, setup
 from glob import glob
 
-PACKAGE_NAME = "composer"
+from setuptools import find_packages, setup
+
+PACKAGE_NAME = "muto_composer"
 
 setup(
     name=PACKAGE_NAME,
-    version="0.0.0",
+    version="0.42.0",
     packages=find_packages(exclude=["test"]),
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + PACKAGE_NAME]),
@@ -27,21 +28,22 @@ setup(
         (os.path.join("share", PACKAGE_NAME, "config"), glob("config/*.yaml")),
         (os.path.join("share", PACKAGE_NAME, "launch"), glob("launch/*.launch.py")),
     ],
-    install_requires=["docker", "setuptools", "jsonschema"],
+    install_requires=["setuptools", "jsonschema"],
     zip_safe=True,
     maintainer="composiv.ai",
     maintainer_email="info@composiv.ai",
-    description="Composer provides orchestration utilites for ROS2 environment",
-    license="Eclipse Public License",
-    tests_require=["unittest", "pytest"],
-    test_suite="test",
+    description=(
+        "Eclipse Muto Composer - stack deployment and orchestration engine"
+        " that manages provisioning, launching, and lifecycle of ROS 2 software stacks"
+    ),
+    license="Eclipse Public License v2.0",
+    python_requires=">=3.10",
     entry_points={
         "console_scripts": [
-            "muto_composer = composer.muto_composer:main",
-            "compose_plugin = composer.plugins.compose_plugin:main",
-            "provision_plugin = composer.plugins.provision_plugin:main",
-            "launch_plugin = composer.plugins.launch_plugin:main",
-            "daemon = composer.introspection.muto_daemon:main",
+            "muto_composer = muto_composer.muto_composer:main",
+            "compose_plugin = muto_composer.plugins.compose_plugin:main",
+            "provision_plugin = muto_composer.plugins.provision_plugin:main",
+            "launch_plugin = muto_composer.plugins.launch_plugin:main",
         ],
     },
 )
