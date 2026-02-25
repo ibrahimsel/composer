@@ -396,7 +396,11 @@ class MutoDefaultLaunchPlugin(BasePlugin):
         # Source the workspace before launching
         # Use context.workspace_path (the actual colcon workspace root) rather than
         # deriving from the launch file path, which breaks for nested package structures.
-        workspace_dir = context.workspace_path if context and context.workspace_path else os.path.dirname(os.path.dirname(full_path))
+        workspace_dir = (
+            context.workspace_path
+            if context and context.workspace_path
+            else os.path.dirname(os.path.dirname(full_path))
+        )
         setup_bash = os.path.join(workspace_dir, "install", "setup.bash")
         if os.path.exists(setup_bash):
             self._source_workspace(setup_bash)
